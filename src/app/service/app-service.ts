@@ -23,9 +23,6 @@ export class AppService {
   public async run(): Promise<void> {
     this.isRunning = true;
     
-    console.log("Claudinator is starting...");
-    console.log("Press Ctrl+C to stop");
-    
     while (this.isRunning && !this.signalHandler.isShutdown) {
       try {
         console.log("Hello World");
@@ -39,8 +36,6 @@ export class AppService {
         break;
       }
     }
-    
-    console.log("Application stopped.");
   }
 
   public cleanup(): void {

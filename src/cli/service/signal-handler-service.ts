@@ -70,12 +70,10 @@ export class SignalHandler {
 
   private async handleSignal(signal: string): Promise<void> {
     if (this.isShuttingDown) {
-      console.log(`\nForce shutdown on second ${signal}...`);
       Deno.exit(1);
     }
 
     this.isShuttingDown = true;
-    console.log(`\nReceived ${signal}, shutting down gracefully...`);
 
     try {
       this.abortController.abort();
@@ -90,7 +88,6 @@ export class SignalHandler {
         })
       );
 
-      console.log("Shutdown complete.");
       Deno.exit(0);
     } catch (error) {
       console.error("Error during shutdown:", error);

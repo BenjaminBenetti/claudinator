@@ -40,7 +40,6 @@ export class CliRunnerService {
       const app = createAppService(this.signalHandler);
       
       this.signalHandler.registerCleanupCallback(() => {
-        console.log("Cleaning up application...");
         app.cleanup();
       });
 
