@@ -1,4 +1,8 @@
+FROM denoland/deno:bin-2.4.0 AS deno
 FROM mcr.microsoft.com/devcontainers/base:noble
+
+# install deno
+COPY --from=deno /deno /usr/local/bin/deno
 
 # user setup
 USER vscode

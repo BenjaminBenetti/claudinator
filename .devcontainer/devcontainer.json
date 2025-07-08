@@ -1,7 +1,7 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
 {
-	"name": "Ubuntu",
+	"name": "claudinator",
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
 	"build": {
 		"dockerfile": "Dockerfile"
@@ -15,7 +15,6 @@
 	// This mount will make "local" data persistent for this dev container. This is important
 	// For AI tools as some make "memories" which normally are lost on devcontainer rebuild. 
 	"mounts": [
-		"source=ai-power-vscode-extension-data,target=/home/vscode/.vscode-server/data/User/workspaceStorage,type=volume",
 		"source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind"
 	],
 	"customizations": {
