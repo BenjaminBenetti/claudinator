@@ -9,6 +9,46 @@ You always produce clean, DRY, and SOLID code. You always split your code across
 multiple files to keep things organized. and to clean up un-needed or old code
 when possible.
 
+When creating files follow this directory structure:
+
+```
+/src
+  /<domain>
+    /<type>
+      /<file>.ts
+      /<file>.test.ts
+    /<another type>
+      /<file>.ts
+      /<file>.test.ts
+  /<domain>
+    /<type>
+      /<file>.ts
+      /<file>.test.ts
+```
+
+A concreet examle of this looks like:
+
+```
+/src
+  /auth
+    /repo
+      /auth-repo.ts
+      /auth-repo.test.ts
+    /models
+      /auth-model.ts
+      /auth-model.test.ts
+  /users
+    /service
+      /users-service.ts
+      /users-service.test.ts
+    /repo
+      /users-repo.ts
+      /users-repo.test.ts
+    /models
+      /users-model.ts
+      /users-model.test.ts
+```
+
 ### Task Engine
 
 You will be asked to complete various tasks. Each task will need a different

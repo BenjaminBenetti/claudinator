@@ -8,7 +8,8 @@
 	},
 	"features": {
 		"ghcr.io/devcontainers/features/node:1": {},
-		"ghcr.io/devcontainers/features/docker-in-docker": {}
+		"ghcr.io/devcontainers/features/docker-in-docker": {},
+		"ghcr.io/devcontainers/features/github-cli:1": {}
 	},
 	"containerUser": "vscode",
 	"postStartCommand": "./.devcontainer/setup.sh",
