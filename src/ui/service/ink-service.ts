@@ -1,16 +1,14 @@
-import { SignalHandler } from "../../cli/service/signal-handler-service.ts";
-import { createInkService } from "../../ui/service/ink-service.ts";
-import { WelcomePage } from "../../ui/components/welcome-page.tsx";
+import { render } from "ink";
 import React from "react";
+import { SignalHandler } from "../../cli/service/signal-handler-service.ts";
 
-export class AppService {
+export class InkService {
   // =========================================================================
   // Private Properties
   // =========================================================================
   
   private signalHandler: SignalHandler;
   private isRunning = false;
-  private inkService: any;
 
   // =========================================================================
   // Constructor
@@ -18,23 +16,18 @@ export class AppService {
 
   constructor(signalHandler: SignalHandler) {
     this.signalHandler = signalHandler;
-    this.inkService = createInkService(signalHandler);
   }
 
   // =========================================================================
   // Public Methods
   // =========================================================================
 
-  public async run(): Promise<void> {
+  public async start(component: React.ReactElement): Promise<void> {
     this.isRunning = true;
     
     try {
-      const welcomeComponent = React.createElement(WelcomePage);
-      await this.inkService.start(welcomeComponent);
-    } catch (error) {
-      if (!this.signalHandler.isShutdown) {
-        console.error("Error in application:", error);
-      }
+      const { waitUntilExit } = render(component);
+      await waitUntilExit();
     } finally {
       this.isRunning = false;
     }
@@ -42,7 +35,6 @@ export class AppService {
 
   public cleanup(): void {
     this.isRunning = false;
-    this.inkService.cleanup();
   }
 
   // =========================================================================
@@ -52,12 +44,8 @@ export class AppService {
   public get running(): boolean {
     return this.isRunning;
   }
-
-  // =========================================================================
-  // Private Methods
-  // =========================================================================
 }
 
-export function createAppService(signalHandler: SignalHandler): AppService {
-  return new AppService(signalHandler);
+export function createInkService(signalHandler: SignalHandler): InkService {
+  return new InkService(signalHandler);
 }

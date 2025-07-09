@@ -1,13 +1,16 @@
 {
   "tasks": {
-    "dev": "deno run --watch src/main.ts",
-    "build": "deno compile --output bin/claudinator src/main.ts",
-    "test": "deno test --coverage=coverage",
-    "compile": "deno compile --output bin/claudinator src/main.ts",
+    "dev": "deno run --watch --allow-env --allow-read --allow-write --allow-net --allow-run src/main.ts",
+    "build": "deno compile --output bin/claudinator --allow-env --allow-read --allow-write --allow-net --allow-run src/main.ts",
+    "test": "deno test --coverage=coverage --allow-env",
+    "compile": "deno compile --output bin/claudinator --allow-env --allow-read --allow-write --allow-net --allow-run src/main.ts",
     "install": "deno install --name claudinator --allow-env --allow-read --allow-write --allow-net --allow-run src/main.ts"
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@1",
-    "@std/cli": "jsr:@std/cli@^1.0.20"
+    "@std/cli": "jsr:@std/cli@^1.0.20",
+    "react": "npm:react@^18.0.0",
+    "ink": "npm:ink@^4.0.0",
+    "react-test-renderer": "npm:react-test-renderer@^18.0.0"
   }
 }

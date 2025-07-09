@@ -10,4 +10,4 @@ After you've run through the plan. Use a subagent to review the code you wrote. 
 
 # Fix Review Feedback
 
-After the review is complete, address any issues you found. Then go BACK to the review phase again, untill there are no more issues to address.
+After the review is complete, address any issues you found. Then go BACK to the review phase again, until there are no more issues to address.
