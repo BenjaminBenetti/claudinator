@@ -3,6 +3,7 @@ import { Box, useInput, useStdout } from "ink";
 import { AgentList } from "../components/agent-list.tsx";
 import { TileContainer, TileContainerRef } from "../components/tile-container.tsx";
 import { AgentTile } from "../components/agent-tile.tsx";
+import { HelpBar } from "../components/help-bar.tsx";
 import { AgentService } from "../../agent/service/agent-service.ts";
 import { UIStateService, FocusArea } from "../service/ui-state-service.ts";
 
@@ -87,7 +88,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
   ));
 
   return (
-    <Box flexDirection="row" width="100%" minHeight={stdout.rows}>
+    <Box flexDirection="row" width="100%" height={stdout.rows}>
       <AgentList
         agents={agents}
         selectedIndex={selectedListIndex}
@@ -98,17 +99,20 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
         onNewAgent={handleNewAgent}
       />
       
-      <Box marginLeft={1} height="100%">
-        <TileContainer
-          ref={tileContainerRef}
-          borderStyle="round"
-          borderColor={focusArea === FocusArea.Tile ? "blue" : "gray"}
-          emptyMessage="Select agents from the sidebar to view their details"
-          focusedTileIndex={focusedTileIndex}
-          onTileFocus={handleTileFocusChange}
-        >
-          {tileChildren}
-        </TileContainer>
+      <Box flexDirection="column" marginLeft={1} height="100%">
+        <Box flexGrow={1}>
+          <TileContainer
+            ref={tileContainerRef}
+            borderStyle="round"
+            borderColor={focusArea === FocusArea.Tile ? "blue" : "gray"}
+            emptyMessage="Select agents from the sidebar to view their details"
+            focusedTileIndex={focusedTileIndex}
+            onTileFocus={handleTileFocusChange}
+          >
+            {tileChildren}
+          </TileContainer>
+        </Box>
+        <HelpBar focusArea={focusArea} />
       </Box>
     </Box>
   );

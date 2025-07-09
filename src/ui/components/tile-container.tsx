@@ -34,7 +34,7 @@ export const TileContainer = React.forwardRef<TileContainerRef, TileContainerPro
   const { stdout } = useStdout();
   
   const containerWidth = stdout.columns - 27; // Account for sidebar width
-  const containerHeight = stdout.rows; // Use full height
+  const containerHeight = stdout.rows - 3; // Account for help bar height (1 + 2 for borders)
 
   useImperativeHandle(ref, () => ({
     navigateTile: handleTileNavigation

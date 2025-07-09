@@ -259,3 +259,49 @@ Deno.test("Unit - TileContainer should handle navigation via ref", async () => {
   component.unmount();
   await new Promise(resolve => setTimeout(resolve, 0));
 });
+
+Deno.test("Unit - TileContainer with exactly 2 tiles should render without border overflow", async () => {
+  const twoTileChildren = [
+    React.createElement(Text, { key: "tile1" }, "First Tile Content"),
+    React.createElement(Text, { key: "tile2" }, "Second Tile Content")
+  ];
+
+  const component = TestRenderer.create(
+    <TileContainer>{twoTileChildren}</TileContainer>
+  );
+  const tree = component.toJSON();
+
+  assertEquals(tree !== null, true);
+  assertEquals(typeof tree === 'object', true);
+
+  const jsonString = JSON.stringify(tree);
+  
+  // Verify both tiles are rendered
+  assertEquals(jsonString.includes("First Tile Content"), true);
+  assertEquals(jsonString.includes("Second Tile Content"), true);
+
+  // Verify container structure has proper layout
+  assertEquals(jsonString.includes('"flexDirection":"column"'), true);
+  
+  // Verify tiles are arranged in rows with proper structure
+  assertEquals(jsonString.includes('"flexDirection":"row"'), true);
+  
+  // Verify proper border styling for tiles
+  assertEquals(jsonString.includes('"borderStyle":"single"'), true);
+  assertEquals(jsonString.includes('"borderColor":"gray"'), true);
+  
+  // Verify proper margin structure between tiles (marginRight should be present)
+  assertEquals(jsonString.includes('"marginRight":1'), true);
+  
+  // Verify proper padding for tiles
+  assertEquals(jsonString.includes('"paddingX":1'), true);
+  assertEquals(jsonString.includes('"paddingY":1'), true);
+
+  // Verify that the layout creates 2 columns and 1 row structure
+  // This ensures tiles are side by side without overflow
+  const tileElements = jsonString.match(/"borderStyle":"single"/g);
+  assertEquals(tileElements?.length, 2); // Should have exactly 2 tiles with borders
+
+  component.unmount();
+  await new Promise(resolve => setTimeout(resolve, 0));
+});
