@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert";
 import React from "react";
 import TestRenderer from "react-test-renderer";
-import { TileContainer } from "./tile-container.tsx";
+import { TileContainer, TileContainerRef } from "./tile-container.tsx";
 import { Text } from "ink";
 
 const mockChildren = [
@@ -224,6 +224,38 @@ Deno.test("Unit - TileContainer should have proper container structure", async (
   const jsonString = JSON.stringify(tree);
   assertEquals(jsonString.includes('"flexDirection":"column"'), true);
   
+  component.unmount();
+  await new Promise(resolve => setTimeout(resolve, 0));
+});
+
+Deno.test("Unit - TileContainer should handle navigation via ref", async () => {
+  let focusedIndex = 0;
+  const handleTileFocus = (index: number) => {
+    focusedIndex = index;
+  };
+
+  const ref = React.createRef<TileContainerRef>();
+  const component = TestRenderer.create(
+    <TileContainer 
+      ref={ref}
+      focusedTileIndex={focusedIndex}
+      onTileFocus={handleTileFocus}
+    >
+      {mockChildren}
+    </TileContainer>
+  );
+
+  // Test that the navigation method is available
+  assertEquals(ref.current !== null, true);
+  assertEquals(typeof ref.current?.navigateTile, "function");
+
+  // Test navigation (note: the actual navigation logic depends on layout calculation)
+  if (ref.current) {
+    ref.current.navigateTile('right');
+    // Since navigation depends on layout calculation and we can't easily mock terminal dimensions,
+    // we'll just verify the method can be called without error
+  }
+
   component.unmount();
   await new Promise(resolve => setTimeout(resolve, 0));
 });

@@ -57,6 +57,11 @@ multiple thought procedures to complete the overall task. Your FIRST thought
 when working on any task should be to resolve the appropriate procedure rule to
 use.
 
+# Quick Commands
+
+- **Test**: `deno task test` - Run tests for the project
+- **Test specific file**: `deno task test <file_path>` - Run tests for a specific file
+
 # Procedure Rules
 
 When asked to do a task. First decide which procedure rule to run and lookup

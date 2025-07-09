@@ -1,28 +1,46 @@
-import React from "react";
+import React, { useState, useEffect, useImperativeHandle } from "react";
 import { Box, Text, useStdout } from "ink";
-import { TileLayout } from "../service/ui-state-service.ts";
+
+export interface TileLayout {
+  columns: number;
+  rows: number;
+  tileWidth: number;
+  tileHeight: number;
+}
 
 interface TileContainerProps {
-  children: React.ReactNode[];
+  children: React.ReactNode;
   borderStyle?: 'single' | 'double' | 'round' | 'bold' | 'singleDouble' | 'doubleSingle' | 'classic';
   borderColor?: string;
   emptyMessage?: string;
   focusedTileIndex?: number;
   onTileFocus?: (index: number) => void;
+  onTileNavigation?: (direction: 'up' | 'down' | 'left' | 'right') => void;
 }
 
-export const TileContainer: React.FC<TileContainerProps> = ({
+export interface TileContainerRef {
+  navigateTile: (direction: 'up' | 'down' | 'left' | 'right') => void;
+}
+
+export const TileContainer = React.forwardRef<TileContainerRef, TileContainerProps>(({
   children,
   borderStyle = 'round',
   borderColor = 'gray',
   emptyMessage = 'No content to display',
   focusedTileIndex = 0,
-  onTileFocus
-}) => {
+  onTileFocus,
+  onTileNavigation
+}, ref) => {
   const { stdout } = useStdout();
   
   const containerWidth = stdout.columns - 27; // Account for sidebar width
   const containerHeight = stdout.rows; // Use full height
+
+  useImperativeHandle(ref, () => ({
+    navigateTile: handleTileNavigation
+  }));
+
+  const childrenArray = React.Children.toArray(children);
   
   const calculateTileLayout = (tileCount: number): TileLayout => {
     if (tileCount === 0) {
@@ -73,7 +91,51 @@ export const TileContainer: React.FC<TileContainerProps> = ({
     };
   };
 
-  if (children.length === 0) {
+  const moveTileFocus = (direction: 'up' | 'down' | 'left' | 'right', layout: TileLayout, totalTiles: number, currentIndex: number): number => {
+    if (totalTiles === 0) return currentIndex;
+
+    const currentRow = Math.floor(currentIndex / layout.columns);
+    const currentCol = currentIndex % layout.columns;
+    
+    let newRow = currentRow;
+    let newCol = currentCol;
+    
+    switch (direction) {
+      case 'up':
+        newRow = currentRow > 0 ? currentRow - 1 : layout.rows - 1;
+        break;
+      case 'down':
+        newRow = currentRow < layout.rows - 1 ? currentRow + 1 : 0;
+        break;
+      case 'left':
+        newCol = currentCol > 0 ? currentCol - 1 : layout.columns - 1;
+        break;
+      case 'right':
+        newCol = currentCol < layout.columns - 1 ? currentCol + 1 : 0;
+        break;
+    }
+    
+    const newIndex = newRow * layout.columns + newCol;
+    
+    return newIndex < totalTiles ? newIndex : currentIndex;
+  };
+
+  const handleTileNavigation = (direction: 'up' | 'down' | 'left' | 'right') => {
+    if (childrenArray.length <= 1) return;
+    
+    const layout = calculateTileLayout(childrenArray.length);
+    const newIndex = moveTileFocus(direction, layout, childrenArray.length, focusedTileIndex);
+    
+    if (newIndex !== focusedTileIndex && onTileFocus) {
+      onTileFocus(newIndex);
+    }
+    
+    if (onTileNavigation) {
+      onTileNavigation(direction);
+    }
+  };
+
+  if (childrenArray.length === 0) {
     return (
       <Box 
         flexDirection="column" 
@@ -93,9 +155,9 @@ export const TileContainer: React.FC<TileContainerProps> = ({
     );
   }
 
-  const layout = calculateTileLayout(children.length);
+  const layout = calculateTileLayout(childrenArray.length);
 
-  if (children.length === 1) {
+  if (childrenArray.length === 1) {
     return (
       <Box 
         borderStyle={borderStyle}
@@ -105,7 +167,7 @@ export const TileContainer: React.FC<TileContainerProps> = ({
         paddingX={1}
         paddingY={1}
       >
-        {children[0]}
+        {childrenArray[0]}
       </Box>
     );
   }
@@ -119,7 +181,7 @@ export const TileContainer: React.FC<TileContainerProps> = ({
       for (let col = 0; col < layout.columns; col++) {
         const tileIndex = row * layout.columns + col;
         
-        if (tileIndex < children.length) {
+        if (tileIndex < childrenArray.length) {
           const isFocused = tileIndex === focusedTileIndex;
           
           rowTiles.push(
@@ -135,7 +197,7 @@ export const TileContainer: React.FC<TileContainerProps> = ({
                 paddingX: 1,
                 paddingY: 1
               },
-              children[tileIndex]
+              childrenArray[tileIndex]
             )
           );
         }
@@ -170,4 +232,4 @@ export const TileContainer: React.FC<TileContainerProps> = ({
       {renderTiles()}
     </Box>
   );
-};
+});

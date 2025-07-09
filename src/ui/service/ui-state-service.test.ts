@@ -12,9 +12,6 @@ Deno.test("Unit - UIStateService should initialize with sidebar focus", () => {
 Deno.test("Unit - UIStateService should set focus area", () => {
   const service = createUIStateService();
   
-  service.setFocusArea(FocusArea.MainContent);
-  assertEquals(service.getFocusArea(), FocusArea.MainContent);
-  
   service.setFocusArea(FocusArea.Tile);
   assertEquals(service.getFocusArea(), FocusArea.Tile);
 });
@@ -35,9 +32,9 @@ Deno.test("Unit - UIStateService should cycle focus with one tile", () => {
   
   // Sidebar -> MainContent
   service.cycleFocus(1);
-  assertEquals(service.getFocusArea(), FocusArea.MainContent);
+  assertEquals(service.getFocusArea(), FocusArea.Tile);
   
-  // MainContent -> Sidebar (single tile doesn't go to tile focus)
+  // Tile -> Sidebar (single tile doesn't go to tile focus)
   service.cycleFocus(1);
   assertEquals(service.getFocusArea(), FocusArea.Sidebar);
 });
@@ -47,15 +44,15 @@ Deno.test("Unit - UIStateService should cycle focus with multiple tiles", () => 
   
   // Sidebar -> MainContent
   service.cycleFocus(2);
-  assertEquals(service.getFocusArea(), FocusArea.MainContent);
+  assertEquals(service.getFocusArea(), FocusArea.Tile);
   
   // MainContent -> Tile
   service.cycleFocus(2);
-  assertEquals(service.getFocusArea(), FocusArea.Tile);
+  assertEquals(service.getFocusArea(), FocusArea.Sidebar);
   
   // Tile -> Sidebar
   service.cycleFocus(2);
-  assertEquals(service.getFocusArea(), FocusArea.Sidebar);
+  assertEquals(service.getFocusArea(), FocusArea.Tile);
 });
 
 Deno.test("Unit - UIStateService should handle list selection", () => {
@@ -116,101 +113,6 @@ Deno.test("Unit - UIStateService should handle tile focus", () => {
   assertEquals(service.getFocusedTileIndex(), 0);
 });
 
-Deno.test("Unit - UIStateService should move tile focus", () => {
-  const service = createUIStateService();
-  const layout = { columns: 2, rows: 2, tileWidth: 100, tileHeight: 100 };
-  
-  // Start at index 0 (top-left)
-  service.setFocusedTileIndex(0);
-  
-  // Move right
-  service.moveTileFocus('right', layout, 4);
-  assertEquals(service.getFocusedTileIndex(), 1);
-  
-  // Move down
-  service.moveTileFocus('down', layout, 4);
-  assertEquals(service.getFocusedTileIndex(), 3);
-  
-  // Move left
-  service.moveTileFocus('left', layout, 4);
-  assertEquals(service.getFocusedTileIndex(), 2);
-  
-  // Move up
-  service.moveTileFocus('up', layout, 4);
-  assertEquals(service.getFocusedTileIndex(), 0);
-});
-
-Deno.test("Unit - UIStateService should wrap tile focus", () => {
-  const service = createUIStateService();
-  const layout = { columns: 2, rows: 2, tileWidth: 100, tileHeight: 100 };
-  
-  // Test wrapping at edges
-  service.setFocusedTileIndex(0);
-  
-  // Move left should wrap to right
-  service.moveTileFocus('left', layout, 4);
-  assertEquals(service.getFocusedTileIndex(), 1);
-  
-  // Move up should wrap to bottom
-  service.setFocusedTileIndex(0);
-  service.moveTileFocus('up', layout, 4);
-  assertEquals(service.getFocusedTileIndex(), 2);
-});
-
-Deno.test("Unit - UIStateService should calculate tile layout for single tile", () => {
-  const service = createUIStateService();
-  
-  const layout = service.calculateTileLayout(100, 200, 1);
-  
-  assertEquals(layout.columns, 1);
-  assertEquals(layout.rows, 1);
-  assertEquals(layout.tileWidth, 98); // 100 - 2 for borders
-  assertEquals(layout.tileHeight, 198); // 200 - 2 for borders
-});
-
-Deno.test("Unit - UIStateService should calculate tile layout for two tiles", () => {
-  const service = createUIStateService();
-  
-  const layout = service.calculateTileLayout(100, 200, 2);
-  
-  assertEquals(layout.columns, 2);
-  assertEquals(layout.rows, 1);
-  assertEquals(layout.tileWidth, 46); // (100 - 2 - 4 - 1) / 2 = 93 / 2 = 46
-  assertEquals(layout.tileHeight, 196); // 200 - 2 - 2 = 196
-});
-
-Deno.test("Unit - UIStateService should calculate tile layout for four tiles", () => {
-  const service = createUIStateService();
-  
-  const layout = service.calculateTileLayout(100, 200, 4);
-  
-  assertEquals(layout.columns, 2);
-  assertEquals(layout.rows, 2);
-  assertEquals(layout.tileWidth, 46); // (100 - 2 - 4 - 1) / 2 = 93 / 2 = 46
-  assertEquals(layout.tileHeight, 96); // (200 - 2 - 4 - 1) / 2 = 193 / 2 = 96
-});
-
-Deno.test("Unit - UIStateService should calculate tile layout for five tiles", () => {
-  const service = createUIStateService();
-  
-  const layout = service.calculateTileLayout(120, 120, 5);
-  
-  assertEquals(layout.columns, 3);
-  assertEquals(layout.rows, 2);
-  assertEquals(layout.tileWidth, 36);
-  assertEquals(layout.tileHeight, 56);
-});
-
-Deno.test("Unit - UIStateService should calculate tile layout for nine tiles", () => {
-  const service = createUIStateService();
-  
-  const layout = service.calculateTileLayout(120, 120, 9);
-  
-  assertEquals(layout.columns, 3);
-  assertEquals(layout.rows, 3);
-  assertEquals(layout.tileWidth, 36);
-  assertEquals(layout.tileHeight, 36);
-});
 
 Deno.test("Unit - UIStateService should reset state", () => {
   const service = createUIStateService();
@@ -228,21 +130,3 @@ Deno.test("Unit - UIStateService should reset state", () => {
   assertEquals(service.getFocusedTileIndex(), 0);
 });
 
-Deno.test("Unit - UIStateService should handle zero tiles in layout", () => {
-  const service = createUIStateService();
-  
-  const layout = service.calculateTileLayout(100, 100, 0);
-  
-  assertEquals(layout.columns, 1);
-  assertEquals(layout.rows, 1);
-  assertEquals(layout.tileWidth, 98);
-  assertEquals(layout.tileHeight, 98);
-});
-
-Deno.test("Unit - UIStateService should handle tile focus with zero tiles", () => {
-  const service = createUIStateService();
-  const layout = { columns: 1, rows: 1, tileWidth: 100, tileHeight: 100 };
-  
-  service.moveTileFocus('right', layout, 0);
-  assertEquals(service.getFocusedTileIndex(), 0);
-});

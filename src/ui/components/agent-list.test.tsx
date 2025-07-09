@@ -64,7 +64,7 @@ Deno.test("Unit - AgentList should render with blue border when focused", async 
 
 Deno.test("Unit - AgentList should render with gray border when not focused", async () => {
   const component = TestRenderer.create(
-    <AgentList {...mockProps} focusArea={FocusArea.MainContent} />
+    <AgentList {...mockProps} focusArea={FocusArea.Tile} />
   );
   const tree = component.toJSON();
   
@@ -147,25 +147,6 @@ Deno.test("Unit - AgentList should show help text when focused", async () => {
   assertEquals(jsonString.includes("Navigate"), true);
   assertEquals(jsonString.includes("Space/Enter Select"), true);
   assertEquals(jsonString.includes("Ctrl + C to Exit"), true);
-  
-  component.unmount();
-  await new Promise(resolve => setTimeout(resolve, 0));
-});
-
-Deno.test("Unit - AgentList should not show help text when not focused", async () => {
-  const component = TestRenderer.create(
-    <AgentList {...mockProps} focusArea={FocusArea.MainContent} />
-  );
-  const tree = component.toJSON();
-  
-  assertEquals(tree !== null, true);
-  assertEquals(typeof tree === 'object', true);
-  
-  // Check that help text is NOT shown when not focused
-  const jsonString = JSON.stringify(tree);
-  assertEquals(jsonString.includes("Navigate"), false);
-  assertEquals(jsonString.includes("Space/Enter Select"), false);
-  assertEquals(jsonString.includes("Ctrl + C to Exit"), false);
   
   component.unmount();
   await new Promise(resolve => setTimeout(resolve, 0));

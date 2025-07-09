@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Box, useInput, useStdout } from "ink";
 import { AgentList } from "../components/agent-list.tsx";
-import { TileContainer } from "../components/tile-container.tsx";
+import { TileContainer, TileContainerRef } from "../components/tile-container.tsx";
 import { AgentTile } from "../components/agent-tile.tsx";
 import { AgentService } from "../../agent/service/agent-service.ts";
 import { UIStateService, FocusArea } from "../service/ui-state-service.ts";
@@ -16,6 +16,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
   uiStateService
 }) => {
   const { stdout } = useStdout();
+  const tileContainerRef = useRef<TileContainerRef>(null);
   const [agents, setAgents] = useState(() => agentService.listAgents());
   const [selectedAgents, setSelectedAgents] = useState(() => agentService.getSelectedAgents());
   const [focusArea, setFocusArea] = useState(() => uiStateService.getFocusArea());
@@ -71,12 +72,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
                          key.downArrow ? 'down' : 
                          key.leftArrow ? 'left' : 'right';
         
-        const containerWidth = 100; // Approximate width
-        const containerHeight = 30; // Approximate height
-        const layout = uiStateService.calculateTileLayout(containerWidth, containerHeight, selectedAgents.length);
-        
-        uiStateService.moveTileFocus(direction, layout, selectedAgents.length);
-        setFocusedTileIndex(uiStateService.getFocusedTileIndex());
+        tileContainerRef.current?.navigateTile(direction);
       }
     }
   });
@@ -104,13 +100,15 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
       
       <Box marginLeft={1} height="100%">
         <TileContainer
-          children={tileChildren}
+          ref={tileContainerRef}
           borderStyle="round"
-          borderColor={focusArea === FocusArea.MainContent || focusArea === FocusArea.Tile ? "blue" : "gray"}
+          borderColor={focusArea === FocusArea.Tile ? "blue" : "gray"}
           emptyMessage="Select agents from the sidebar to view their details"
           focusedTileIndex={focusedTileIndex}
           onTileFocus={handleTileFocusChange}
-        />
+        >
+          {tileChildren}
+        </TileContainer>
       </Box>
     </Box>
   );

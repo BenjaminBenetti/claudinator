@@ -111,13 +111,12 @@ export const AgentList: React.FC<AgentListProps> = ({
         </Text>
       </Box>
       
-      {isActive && (
-        <Box marginTop={1}>
-          <Text color="gray" dimColor>
-            ↑↓ Navigate, Space/Enter Select, Ctrl + C to Exit
-          </Text>
-        </Box>
-      )}
+      
+      <Box marginTop={1}>
+        <Text color="gray" dimColor>
+          ↑↓ Navigate, Space/Enter Select, Ctrl + C to Exit
+        </Text>
+      </Box>
     </Box>
   );
 };
