@@ -9,6 +9,7 @@ export class InkService {
   
   private signalHandler: SignalHandler;
   private isRunning = false;
+  private currentInstance: any = null;
 
   // =========================================================================
   // Constructor
@@ -26,15 +27,21 @@ export class InkService {
     this.isRunning = true;
     
     try {
-      const { waitUntilExit } = render(component);
+      const { waitUntilExit, unmount } = render(component);
+      this.currentInstance = { waitUntilExit, unmount };
       await waitUntilExit();
     } finally {
       this.isRunning = false;
+      this.currentInstance = null;
     }
   }
 
   public cleanup(): void {
     this.isRunning = false;
+    if (this.currentInstance && this.currentInstance.unmount) {
+      this.currentInstance.unmount();
+      this.currentInstance = null;
+    }
   }
 
   // =========================================================================

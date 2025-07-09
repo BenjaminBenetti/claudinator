@@ -1,6 +1,9 @@
 import { SignalHandler } from "../../cli/service/signal-handler-service.ts";
 import { createInkService } from "../../ui/service/ink-service.ts";
-import { WelcomePage } from "../../ui/components/welcome-page.tsx";
+import { AppContainer } from "../../ui/components/app-container.tsx";
+import { createAgentService } from "../../agent/service/agent-service.ts";
+import { createAgentRepository } from "../../agent/repo/agent-repo.ts";
+import { createUIStateService } from "../../ui/service/ui-state-service.ts";
 import React from "react";
 
 export class AppService {
@@ -11,6 +14,8 @@ export class AppService {
   private signalHandler: SignalHandler;
   private isRunning = false;
   private inkService: any;
+  private agentService: any;
+  private uiStateService: any;
 
   // =========================================================================
   // Constructor
@@ -19,6 +24,11 @@ export class AppService {
   constructor(signalHandler: SignalHandler) {
     this.signalHandler = signalHandler;
     this.inkService = createInkService(signalHandler);
+    
+    // Initialize services
+    const agentRepository = createAgentRepository();
+    this.agentService = createAgentService(agentRepository);
+    this.uiStateService = createUIStateService();
   }
 
   // =========================================================================
@@ -29,8 +39,12 @@ export class AppService {
     this.isRunning = true;
     
     try {
-      const welcomeComponent = React.createElement(WelcomePage);
-      await this.inkService.start(welcomeComponent);
+      const appComponent = React.createElement(AppContainer, {
+        agentService: this.agentService,
+        uiStateService: this.uiStateService
+      });
+      
+      await this.inkService.start(appComponent);
     } catch (error) {
       if (!this.signalHandler.isShutdown) {
         console.error("Error in application:", error);

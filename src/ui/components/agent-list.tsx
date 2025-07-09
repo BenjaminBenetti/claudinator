@@ -1,0 +1,113 @@
+import React from "react";
+import { Box, Text, useInput } from "ink";
+import { Agent } from "../../agent/models/agent-model.ts";
+import { FocusArea } from "../service/ui-state-service.ts";
+
+interface AgentListProps {
+  agents: Agent[];
+  selectedIndex: number;
+  focusArea: FocusArea;
+  onSelectionChange: (index: number) => void;
+  onAgentSelect: (agentId: string) => void;
+  onNewAgent: () => void;
+}
+
+export const AgentList: React.FC<AgentListProps> = ({
+  agents,
+  selectedIndex,
+  focusArea,
+  onSelectionChange,
+  onAgentSelect,
+  onNewAgent
+}) => {
+  const isActive = focusArea === FocusArea.Sidebar;
+  const totalItems = agents.length + 1; // +1 for "New Agent" button
+  
+  useInput((input, key) => {
+    if (!isActive) return;
+    
+    if (key.upArrow) {
+      const newIndex = selectedIndex > 0 ? selectedIndex - 1 : totalItems - 1;
+      onSelectionChange(newIndex);
+    } else if (key.downArrow) {
+      const newIndex = selectedIndex < totalItems - 1 ? selectedIndex + 1 : 0;
+      onSelectionChange(newIndex);
+    } else if (key.return || input === ' ') {
+      if (selectedIndex < agents.length) {
+        onAgentSelect(agents[selectedIndex].id);
+      } else {
+        onNewAgent();
+      }
+    }
+  });
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'green';
+      case 'running': return 'blue';
+      case 'error': return 'red';
+      default: return 'gray';
+    }
+  };
+
+  const getStatusSymbol = (status: string) => {
+    switch (status) {
+      case 'active': return '●';
+      case 'running': return '▶';
+      case 'error': return '✗';
+      default: return '○';
+    }
+  };
+
+  return (
+    <Box 
+      flexDirection="column" 
+      borderStyle="round" 
+      borderColor={isActive ? "blue" : "gray"}
+      paddingX={1}
+      paddingY={1}
+      width={25}
+      height="100%"
+    >
+      <Box marginBottom={1}>
+        <Text color="white" bold>Agents</Text>
+      </Box>
+      
+      <Box flexDirection="column" flexGrow={1}>
+        {agents.map((agent, index) => (
+          <Box key={agent.id} marginBottom={0}>
+            <Text 
+              color={selectedIndex === index && isActive ? "blue" : "white"}
+              backgroundColor={selectedIndex === index && isActive ? "white" : undefined}
+              bold={selectedIndex === index && isActive}
+            >
+              {selectedIndex === index && isActive ? ">" : " "} 
+              <Text color={getStatusColor(agent.status)}>
+                {getStatusSymbol(agent.status)}
+              </Text>
+              {" " + agent.name}
+            </Text>
+          </Box>
+        ))}
+      </Box>
+      
+      <Box marginTop={1}>
+        <Text 
+          color={selectedIndex === agents.length && isActive ? "blue" : "green"}
+          backgroundColor={selectedIndex === agents.length && isActive ? "white" : undefined}
+          bold={selectedIndex === agents.length && isActive}
+        >
+          {selectedIndex === agents.length && isActive ? ">" : " "} + New Agent
+        </Text>
+      </Box>
+      
+      {isActive && (
+        <Box marginTop={1}>
+          <Text color="gray" dimColor>
+            ↑↓ Navigate, Space/Enter Select
+          </Text>
+        </Box>
+      )}
+    </Box>
+  );
+};

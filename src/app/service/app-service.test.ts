@@ -6,6 +6,8 @@ class MockAppService {
   private signalHandler: any;
   private isRunning = false;
   private mockInkService: any;
+  private mockAgentService: any;
+  private mockUIStateService: any;
 
   constructor(signalHandler: any) {
     this.signalHandler = signalHandler;
@@ -19,11 +21,33 @@ class MockAppService {
         this.isRunning = false;
       }
     };
+    
+    // Mock agent service
+    this.mockAgentService = {
+      listAgents: () => [],
+      getSelectedAgents: () => [],
+      createAgent: () => ({ id: 'mock-id', name: 'Mock Agent', status: 'idle', createdAt: new Date() }),
+      selectAgent: () => true,
+      getAgentCount: () => 0,
+      getSelectedAgentCount: () => 0
+    };
+    
+    // Mock UI state service
+    this.mockUIStateService = {
+      getFocusArea: () => 'sidebar',
+      getSelectedListIndex: () => 0,
+      getFocusedTileIndex: () => 0,
+      setFocusArea: () => {},
+      setSelectedListIndex: () => {},
+      setFocusedTileIndex: () => {},
+      resetState: () => {}
+    };
   }
 
   public async run(): Promise<void> {
     this.isRunning = true;
     try {
+      // Mock app container with splash screen and main app
       await this.mockInkService.start();
     } finally {
       this.isRunning = false;
