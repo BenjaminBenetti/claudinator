@@ -26,39 +26,50 @@ export const TileContainer: React.FC<TileContainerProps> = ({
   
   const calculateTileLayout = (tileCount: number): TileLayout => {
     if (tileCount === 0) {
-      return { columns: 1, rows: 1, tileWidth: containerWidth, tileHeight: containerHeight };
+      return { columns: 1, rows: 1, tileWidth: containerWidth - 2, tileHeight: containerHeight - 2 };
     }
 
     if (tileCount === 1) {
-      return { columns: 1, rows: 1, tileWidth: containerWidth, tileHeight: containerHeight };
+      return { columns: 1, rows: 1, tileWidth: containerWidth - 2, tileHeight: containerHeight - 2 };
     }
 
     if (tileCount === 2) {
+      // For 2 tiles side by side, account for: container padding (2), tile borders (4), margin between tiles (1)
+      const availableWidth = containerWidth - 2 - 4 - 1; // -2 for container padding, -4 for tile borders, -1 for margin
       return { 
         columns: 2, 
         rows: 1, 
-        tileWidth: Math.floor(containerWidth / 2) - 1, 
-        tileHeight: containerHeight 
+        tileWidth: Math.floor(availableWidth / 2), 
+        tileHeight: containerHeight - 2 - 2 // -2 for container padding, -2 for tile borders
       };
     }
 
     if (tileCount <= 4) {
+      // For 4 tiles in 2x2 grid
+      const availableWidth = containerWidth - 2 - 4 - 1; // -2 for container padding, -4 for tile borders, -1 for margin
+      const availableHeight = containerHeight - 2 - 4 - 1; // -2 for container padding, -4 for tile borders, -1 for margin
       return { 
         columns: 2, 
         rows: 2, 
-        tileWidth: Math.floor(containerWidth / 2) - 1, 
-        tileHeight: Math.floor(containerHeight / 2) - 1 
+        tileWidth: Math.floor(availableWidth / 2), 
+        tileHeight: Math.floor(availableHeight / 2)
       };
     }
 
     const columns = Math.ceil(Math.sqrt(tileCount));
     const rows = Math.ceil(tileCount / columns);
+    
+    // Calculate available space accounting for borders and margins
+    const horizontalOverhead = 2 + (columns * 2) + (columns - 1); // container padding + tile borders + margins
+    const verticalOverhead = 2 + (rows * 2) + (rows - 1); // container padding + tile borders + margins
+    const availableWidth = containerWidth - horizontalOverhead;
+    const availableHeight = containerHeight - verticalOverhead;
 
     return {
       columns,
       rows,
-      tileWidth: Math.floor(containerWidth / columns) - 1,
-      tileHeight: Math.floor(containerHeight / rows) - 1
+      tileWidth: Math.floor(availableWidth / columns),
+      tileHeight: Math.floor(availableHeight / rows)
     };
   };
 

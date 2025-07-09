@@ -30,6 +30,7 @@ const mockProps = {
   agents: mockAgents,
   selectedIndex: 0,
   focusArea: FocusArea.Sidebar,
+  selectedAgents: [],
   onSelectionChange: () => {},
   onAgentSelect: () => {},
   onNewAgent: () => {}
@@ -154,4 +155,17 @@ Deno.test("Unit - AgentList should handle different selected indices", () => {
   const tree3 = component3.toJSON();
   assertEquals(tree3 !== null, true);
   component3.unmount();
+});
+
+Deno.test("Unit - AgentList should render with selected agents in tile area", () => {
+  const propsWithSelectedAgents = {
+    ...mockProps,
+    selectedAgents: [mockAgents[0], mockAgents[2]] // First and third agents are in tile area
+  };
+  
+  const component = TestRenderer.create(<AgentList {...propsWithSelectedAgents} />);
+  const tree = component.toJSON();
+  
+  assertEquals(tree !== null, true);
+  component.unmount();
 });

@@ -164,8 +164,8 @@ Deno.test("Unit - UIStateService should calculate tile layout for single tile", 
   
   assertEquals(layout.columns, 1);
   assertEquals(layout.rows, 1);
-  assertEquals(layout.tileWidth, 100);
-  assertEquals(layout.tileHeight, 200);
+  assertEquals(layout.tileWidth, 98); // 100 - 2 for borders
+  assertEquals(layout.tileHeight, 198); // 200 - 2 for borders
 });
 
 Deno.test("Unit - UIStateService should calculate tile layout for two tiles", () => {
@@ -175,8 +175,8 @@ Deno.test("Unit - UIStateService should calculate tile layout for two tiles", ()
   
   assertEquals(layout.columns, 2);
   assertEquals(layout.rows, 1);
-  assertEquals(layout.tileWidth, 50);
-  assertEquals(layout.tileHeight, 200);
+  assertEquals(layout.tileWidth, 46); // (100 - 2 - 4 - 1) / 2 = 93 / 2 = 46
+  assertEquals(layout.tileHeight, 196); // 200 - 2 - 2 = 196
 });
 
 Deno.test("Unit - UIStateService should calculate tile layout for four tiles", () => {
@@ -186,8 +186,8 @@ Deno.test("Unit - UIStateService should calculate tile layout for four tiles", (
   
   assertEquals(layout.columns, 2);
   assertEquals(layout.rows, 2);
-  assertEquals(layout.tileWidth, 50);
-  assertEquals(layout.tileHeight, 100);
+  assertEquals(layout.tileWidth, 46); // (100 - 2 - 4 - 1) / 2 = 93 / 2 = 46
+  assertEquals(layout.tileHeight, 96); // (200 - 2 - 4 - 1) / 2 = 193 / 2 = 96
 });
 
 Deno.test("Unit - UIStateService should calculate tile layout for five tiles", () => {
@@ -197,8 +197,8 @@ Deno.test("Unit - UIStateService should calculate tile layout for five tiles", (
   
   assertEquals(layout.columns, 3);
   assertEquals(layout.rows, 2);
-  assertEquals(layout.tileWidth, 40);
-  assertEquals(layout.tileHeight, 60);
+  assertEquals(layout.tileWidth, 36);
+  assertEquals(layout.tileHeight, 56);
 });
 
 Deno.test("Unit - UIStateService should calculate tile layout for nine tiles", () => {
@@ -208,8 +208,8 @@ Deno.test("Unit - UIStateService should calculate tile layout for nine tiles", (
   
   assertEquals(layout.columns, 3);
   assertEquals(layout.rows, 3);
-  assertEquals(layout.tileWidth, 40);
-  assertEquals(layout.tileHeight, 40);
+  assertEquals(layout.tileWidth, 36);
+  assertEquals(layout.tileHeight, 36);
 });
 
 Deno.test("Unit - UIStateService should reset state", () => {
@@ -235,8 +235,8 @@ Deno.test("Unit - UIStateService should handle zero tiles in layout", () => {
   
   assertEquals(layout.columns, 1);
   assertEquals(layout.rows, 1);
-  assertEquals(layout.tileWidth, 100);
-  assertEquals(layout.tileHeight, 100);
+  assertEquals(layout.tileWidth, 98);
+  assertEquals(layout.tileHeight, 98);
 });
 
 Deno.test("Unit - UIStateService should handle tile focus with zero tiles", () => {

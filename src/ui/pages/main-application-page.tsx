@@ -95,6 +95,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
         agents={agents}
         selectedIndex={selectedListIndex}
         focusArea={focusArea}
+        selectedAgents={selectedAgents}
         onSelectionChange={handleSelectionChange}
         onAgentSelect={handleAgentSelect}
         onNewAgent={handleNewAgent}

@@ -7,6 +7,7 @@ interface AgentListProps {
   agents: Agent[];
   selectedIndex: number;
   focusArea: FocusArea;
+  selectedAgents: Agent[];
   onSelectionChange: (index: number) => void;
   onAgentSelect: (agentId: string) => void;
   onNewAgent: () => void;
@@ -16,6 +17,7 @@ export const AgentList: React.FC<AgentListProps> = ({
   agents,
   selectedIndex,
   focusArea,
+  selectedAgents,
   onSelectionChange,
   onAgentSelect,
   onNewAgent
@@ -74,21 +76,29 @@ export const AgentList: React.FC<AgentListProps> = ({
       </Box>
       
       <Box flexDirection="column" flexGrow={1}>
-        {agents.map((agent, index) => (
-          <Box key={agent.id} marginBottom={0}>
-            <Text 
-              color={selectedIndex === index && isActive ? "blue" : "white"}
-              backgroundColor={selectedIndex === index && isActive ? "white" : undefined}
-              bold={selectedIndex === index && isActive}
-            >
-              {selectedIndex === index && isActive ? ">" : " "} 
-              <Text color={getStatusColor(agent.status)}>
-                {getStatusSymbol(agent.status)}
+        {agents.map((agent, index) => {
+          const isCurrentlySelected = selectedIndex === index && isActive;
+          const isInTileArea = selectedAgents.some(selected => selected.id === agent.id);
+          
+          return (
+            <Box key={agent.id} marginBottom={0} flexDirection="row" justifyContent="space-between" width="100%">
+              <Text 
+                color={isCurrentlySelected ? "blue" : "white"}
+                backgroundColor={isCurrentlySelected ? "white" : undefined}
+                bold={isCurrentlySelected}
+              >
+                {isCurrentlySelected ? ">" : " "} 
+                <Text color={getStatusColor(agent.status)}>
+                  {getStatusSymbol(agent.status)}
+                </Text>
+                {" " + agent.name}
               </Text>
-              {" " + agent.name}
-            </Text>
-          </Box>
-        ))}
+              {isInTileArea && (
+                <Text color="green" bold>▶</Text>
+              )}
+            </Box>
+          );
+        })}
       </Box>
       
       <Box marginTop={1}>
