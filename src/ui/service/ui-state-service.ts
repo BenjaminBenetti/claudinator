@@ -27,10 +27,10 @@ export class UIStateService {
   public cycleFocus(totalTiles: number): void {
     switch (this.currentFocus) {
       case FocusArea.Sidebar:
-        this.currentFocus = totalTiles > 0 ? FocusArea.MainContent : FocusArea.Sidebar;
+        this.currentFocus = totalTiles > 1 ? FocusArea.Tile : FocusArea.Sidebar;
         break;
       case FocusArea.MainContent:
-        this.currentFocus = totalTiles > 1 ? FocusArea.Tile : FocusArea.Sidebar;
+        this.currentFocus = FocusArea.Sidebar;
         break;
       case FocusArea.Tile:
         this.currentFocus = FocusArea.Sidebar;
