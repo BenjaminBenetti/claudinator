@@ -12,5 +12,8 @@
     "react": "npm:react@^18.0.0",
     "ink": "npm:ink@^4.0.0",
     "react-test-renderer": "npm:react-test-renderer@^18.0.0"
+  },
+  "compilerOptions": {
+    "noImplicitAny": false
   }
 }
