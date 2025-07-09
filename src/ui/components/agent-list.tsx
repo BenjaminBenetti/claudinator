@@ -114,7 +114,7 @@ export const AgentList: React.FC<AgentListProps> = ({
       {isActive && (
         <Box marginTop={1}>
           <Text color="gray" dimColor>
-            ↑↓ Navigate, Space/Enter Select
+            ↑↓ Navigate, Space/Enter Select, Ctrl + C to Exit
           </Text>
         </Box>
       )}

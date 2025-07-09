@@ -22,7 +22,7 @@ export const TileContainer: React.FC<TileContainerProps> = ({
   const { stdout } = useStdout();
   
   const containerWidth = stdout.columns - 27; // Account for sidebar width
-  const containerHeight = stdout.rows - 4; // Account for borders and padding
+  const containerHeight = stdout.rows; // Use full height
   
   const calculateTileLayout = (tileCount: number): TileLayout => {
     if (tileCount === 0) {
@@ -82,7 +82,7 @@ export const TileContainer: React.FC<TileContainerProps> = ({
         borderStyle={borderStyle}
         borderColor={borderColor}
         width={containerWidth}
-        height={containerHeight}
+        height="100%"
         paddingX={1}
         paddingY={1}
       >
@@ -101,7 +101,7 @@ export const TileContainer: React.FC<TileContainerProps> = ({
         borderStyle={borderStyle}
         borderColor={borderColor}
         width={containerWidth}
-        height={containerHeight}
+        height="100%"
         paddingX={1}
         paddingY={1}
       >
@@ -163,7 +163,7 @@ export const TileContainer: React.FC<TileContainerProps> = ({
       borderStyle={borderStyle}
       borderColor={borderColor}
       width={containerWidth}
-      height={containerHeight}
+      height="100%"
       paddingX={1}
       paddingY={1}
     >

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Box, useInput } from "ink";
+import { Box, useInput, useStdout } from "ink";
 import { AgentList } from "../components/agent-list.tsx";
 import { TileContainer } from "../components/tile-container.tsx";
 import { AgentTile } from "../components/agent-tile.tsx";
@@ -15,6 +15,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
   agentService,
   uiStateService
 }) => {
+  const { stdout } = useStdout();
   const [agents, setAgents] = useState(() => agentService.listAgents());
   const [selectedAgents, setSelectedAgents] = useState(() => agentService.getSelectedAgents());
   const [focusArea, setFocusArea] = useState(() => uiStateService.getFocusArea());
@@ -90,7 +91,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
   ));
 
   return (
-    <Box flexDirection="row" width="100%" height="100%">
+    <Box flexDirection="row" width="100%" minHeight={stdout.rows}>
       <AgentList
         agents={agents}
         selectedIndex={selectedListIndex}
@@ -101,7 +102,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
         onNewAgent={handleNewAgent}
       />
       
-      <Box marginLeft={1}>
+      <Box marginLeft={1} height="100%">
         <TileContainer
           children={tileChildren}
           borderStyle="round"
