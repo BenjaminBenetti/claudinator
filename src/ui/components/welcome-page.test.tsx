@@ -20,7 +20,8 @@ Deno.test("Unit - WelcomePage should have correct structure", async () => {
     assertEquals(tree.type, 'ink-box');
     assertEquals(tree.props?.style?.flexDirection, 'column');
     assertEquals(tree.props?.style?.alignItems, 'center');
-    assertEquals(tree.props?.style?.padding, 2);
+    assertEquals(tree.props?.style?.justifyContent, 'center');
+    assertEquals(tree.props?.style?.width, '100%');
   }
   
   component.unmount();
