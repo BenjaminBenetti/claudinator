@@ -28,20 +28,17 @@ Deno.test("Unit - WelcomePage should have correct structure", async () => {
   await new Promise(resolve => setTimeout(resolve, 0));
 });
 
-Deno.test("Unit - WelcomePage should contain three text elements", async () => {
+Deno.test("Unit - WelcomePage should contain text elements", async () => {
   const component = TestRenderer.create(<WelcomePage />);
   const tree = component.toJSON();
   
-  if (tree && typeof tree === 'object' && 'children' in tree && Array.isArray(tree.children)) {
-    assertEquals(tree.children.length, 3);
-    
-    // Check that all children are ink-text elements
-    for (const child of tree.children) {
-      if (typeof child === 'object' && child !== null && 'type' in child) {
-        assertEquals(child.type, 'ink-text');
-      }
-    }
-  }
+  assertEquals(tree !== null, true);
+  assertEquals(typeof tree === 'object', true);
+  
+  // Check that the welcome page contains the expected text
+  const jsonString = JSON.stringify(tree);
+  assertEquals(jsonString.includes("hope you have the Max plan"), true);
+  assertEquals(jsonString.includes("Press Ctrl+C to exit"), true);
   
   // Clean up component to avoid timer leaks
   component.unmount();
@@ -52,12 +49,13 @@ Deno.test("Unit - WelcomePage should contain title text", async () => {
   const component = TestRenderer.create(<WelcomePage />);
   const tree = component.toJSON();
   
-  if (tree && typeof tree === 'object' && 'children' in tree && Array.isArray(tree.children)) {
-    const titleChild = tree.children[0];
-    if (typeof titleChild === 'object' && titleChild !== null && 'children' in titleChild && Array.isArray(titleChild.children)) {
-      assertEquals(titleChild.children[0], '🦕 Claudinator');
-    }
-  }
+  assertEquals(tree !== null, true);
+  assertEquals(typeof tree === 'object', true);
+  
+  // Check that the ASCII art title is present
+  const jsonString = JSON.stringify(tree);
+  assertEquals(jsonString.includes("░█████╗░"), true); // First line of ASCII art
+  assertEquals(jsonString.includes("╚═════╝░"), true); // Parts of the ASCII art
   
   component.unmount();
   await new Promise(resolve => setTimeout(resolve, 0));
@@ -67,12 +65,12 @@ Deno.test("Unit - WelcomePage should contain welcome message", async () => {
   const component = TestRenderer.create(<WelcomePage />);
   const tree = component.toJSON();
   
-  if (tree && typeof tree === 'object' && 'children' in tree && Array.isArray(tree.children)) {
-    const messageChild = tree.children[1];
-    if (typeof messageChild === 'object' && messageChild !== null && 'children' in messageChild && Array.isArray(messageChild.children)) {
-      assertEquals(messageChild.children[0], 'Welcome to your CLI application!');
-    }
-  }
+  assertEquals(tree !== null, true);
+  assertEquals(typeof tree === 'object', true);
+  
+  // Check that the welcome message is present
+  const jsonString = JSON.stringify(tree);
+  assertEquals(jsonString.includes("I hope you have the Max plan"), true);
   
   component.unmount();
   await new Promise(resolve => setTimeout(resolve, 0));
