@@ -3,15 +3,16 @@ import React from "react";
 import TestRenderer from "react-test-renderer";
 import { WelcomePage } from "./welcome-page.tsx";
 
-Deno.test("Unit - WelcomePage should render without crashing", () => {
+Deno.test("Unit - WelcomePage should render without crashing", async () => {
   const component = TestRenderer.create(<WelcomePage />);
   const tree = component.toJSON();
   
   assertEquals(tree !== null, true);
   component.unmount();
+  await new Promise(resolve => setTimeout(resolve, 0));
 });
 
-Deno.test("Unit - WelcomePage should have correct structure", () => {
+Deno.test("Unit - WelcomePage should have correct structure", async () => {
   const component = TestRenderer.create(<WelcomePage />);
   const tree = component.toJSON();
   
@@ -23,9 +24,10 @@ Deno.test("Unit - WelcomePage should have correct structure", () => {
   }
   
   component.unmount();
+  await new Promise(resolve => setTimeout(resolve, 0));
 });
 
-Deno.test("Unit - WelcomePage should contain three text elements", () => {
+Deno.test("Unit - WelcomePage should contain three text elements", async () => {
   const component = TestRenderer.create(<WelcomePage />);
   const tree = component.toJSON();
   
@@ -42,9 +44,10 @@ Deno.test("Unit - WelcomePage should contain three text elements", () => {
   
   // Clean up component to avoid timer leaks
   component.unmount();
+  await new Promise(resolve => setTimeout(resolve, 0));
 });
 
-Deno.test("Unit - WelcomePage should contain title text", () => {
+Deno.test("Unit - WelcomePage should contain title text", async () => {
   const component = TestRenderer.create(<WelcomePage />);
   const tree = component.toJSON();
   
@@ -56,9 +59,10 @@ Deno.test("Unit - WelcomePage should contain title text", () => {
   }
   
   component.unmount();
+  await new Promise(resolve => setTimeout(resolve, 0));
 });
 
-Deno.test("Unit - WelcomePage should contain welcome message", () => {
+Deno.test("Unit - WelcomePage should contain welcome message", async () => {
   const component = TestRenderer.create(<WelcomePage />);
   const tree = component.toJSON();
   
@@ -70,9 +74,10 @@ Deno.test("Unit - WelcomePage should contain welcome message", () => {
   }
   
   component.unmount();
+  await new Promise(resolve => setTimeout(resolve, 0));
 });
 
-Deno.test("Unit - WelcomePage should contain exit instructions", () => {
+Deno.test("Unit - WelcomePage should contain exit instructions", async () => {
   const component = TestRenderer.create(<WelcomePage />);
   const tree = component.toJSON();
   
@@ -84,4 +89,5 @@ Deno.test("Unit - WelcomePage should contain exit instructions", () => {
   }
   
   component.unmount();
+  await new Promise(resolve => setTimeout(resolve, 0));
 });
