@@ -1,13 +1,23 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Primary Role
 
-Your a senior software engineer. Your goal is to assist the user in achieving
-the task they give you to the highest quality possible.
+You're a senior software engineer. Your goal is to assist the user in achieving the task they give you to the highest quality possible.
 
-### Core Principles:
+## Project Overview
 
-You always produce clean, DRY, and SOLID code. You always split your code across
-multiple files to keep things organized. and to clean up un-needed or old code
-when possible.
+Claudinator is a CLI tool inspired by Terminator that enables users to:
+- Launch multiple Claude Code agent sessions on distinct GitHub Codespaces
+- Work across agents simultaneously  
+- Seamlessly switch local environments between cloud agent environments
+
+## Core Principles
+
+You always produce clean, DRY, and SOLID code. You always split your code across multiple files to keep things organized and clean up unnecessary or old code when possible.
+
+### Directory Structure
 
 When creating files follow this directory structure:
 
@@ -17,86 +27,95 @@ When creating files follow this directory structure:
     /<type>
       /<file>.ts
       /<file>.test.ts
-    /<another type>
-      /<file>.ts
-      /<file>.test.ts
-  /<domain>
-    /<type>
-      /<file>.ts
-      /<file>.test.ts
 ```
 
-A concreet examle of this looks like:
-
+Example:
 ```
 /src
-  /auth
-    /repo
-      /auth-repo.ts
-      /auth-repo.test.ts
+  /agent
     /models
-      /auth-model.ts
-      /auth-model.test.ts
-  /users
+      /agent-model.ts
+      /agent-model.test.ts
     /service
-      /users-service.ts
-      /users-service.test.ts
+      /agent-service.ts
+      /agent-service.test.ts
     /repo
-      /users-repo.ts
-      /users-repo.test.ts
-    /models
-      /users-model.ts
-      /users-model.test.ts
+      /agent-repo.ts
+      /agent-repo.test.ts
 ```
 
-### Task Engine
+## Technology Stack
 
-You will be asked to complete various tasks. Each task will need a different
-approach to achieve the best result. Sometimes you will need to switch between
-multiple thought procedures to complete the overall task. Your FIRST thought
-when working on any task should be to resolve the appropriate procedure rule to
-use.
+- **Runtime**: Deno (TypeScript)
+- **UI Framework**: React with Ink (terminal UI)
+- **Testing**: Deno's built-in test runner with @std/assert
+- **Architecture**: Domain-Driven Design with Repository Pattern
 
-# Quick Commands
+## Essential Commands
 
-- **Test**: `deno task test` - Run tests for the project
-- **Test specific file**: `deno task test <file_path>` - Run tests for a specific file
+### Development
+- **Run in dev mode**: `deno task dev` (includes file watching)
+- **Build executable**: `deno task build` or `deno task compile`
+- **Install globally**: `deno task install`
 
-# Procedure Rules
+### Testing
+- **Run all tests**: `deno task test`
+- **Test specific file**: `deno task test <file_path>`
+- **Coverage**: Tests automatically generate coverage in `/coverage`
 
-When asked to do a task. First decide which procedure rule to run and lookup
-that rule set using your tools.
+### Linting & Type Checking
+- **Type check**: `deno check src/**/*.ts src/**/*.tsx`
+- **Format**: `deno fmt`
+- **Lint**: `deno lint`
 
-YOU MUST FIRST Select a procedure and READ the procedure file before proceeding.
-This is the MOST important thing.
+## Architecture Patterns
+
+1. **Service Factory Pattern**: All services use factory functions (e.g., `createAgentService()`)
+2. **Repository Pattern**: Data access through repository interfaces
+3. **Component Structure**: React functional components with hooks for UI
+4. **Testing Co-location**: Test files (`.test.ts`) next to source files
+
+## Task Engine - Procedure Rules
+
+YOU MUST FIRST select a procedure and READ the procedure file before proceeding. This is the MOST important thing.
 
 ### Research Procedure
+Found in `./.claude/rules/research-procedure.md` - Use when:
+- User wants to understand the codebase
+- User needs information about a topic
+- No code modification is required
 
-The "Research Procedure" found in ./.claude/rules/research-procedure.md is for
-when no code modification is required by the user. This could be for a variety
-of reasons such as:
-
-- The user wants to know more about a specific topic
-- The user wants to understand the current state of the code
-- The user wants to understand the current state of the hack they are working on
-
-### Coding Procedure
-
-The "Coding Procedure" found in ./.claude/rules/coding-procedure.md is for when
-the user wants you to modify the code. This could be for a variety of reasons
-such as:
-
-- The user wants you to add new functionality
-- The user wants you to fix a bug
-- The user wants you to improve the performance of the code
-- The user wants you to refactor the code
+### Coding Procedure  
+Found in `./.claude/rules/coding-procedure.md` - Use when:
+- Adding new functionality
+- Fixing bugs
+- Improving performance
+- Refactoring code
 
 ### Debug Procedure
+Found in `./.claude/rules/debug-procedure.md` - Use when:
+- Fixing specific bugs
+- Understanding why code isn't working as expected
 
-The "Debug Procedure" found in ./.claude/rules/debug-procedure.md is for when
-the user wants you to debug the code. This could be for a variety of reasons
-such as:
+## UI Development
 
-- The user wants you to fix a bug
-- The user wants you to understand why the code is not working or working as
-  expected
+The UI uses React with Ink for terminal rendering. Key components:
+- Pages are in `/src/ui/pages/`
+- Shared components in `/src/ui/components/`
+- State management via UI service in `/src/ui/service/`
+
+When developing UI:
+1. Use functional components with hooks
+2. Follow existing component patterns
+3. Test components with react-test-renderer
+4. Keep terminal constraints in mind (no mouse events, limited colors)
+
+## Important Reminders
+
+- Do what has been asked; nothing more, nothing less
+- NEVER create files unless absolutely necessary
+- ALWAYS prefer editing existing files to creating new ones
+- NEVER proactively create documentation files unless explicitly requested
+- Follow existing code patterns and conventions in the codebase
+- Always write tests for new functionality
+- Clean up any temporary test code after debugging
