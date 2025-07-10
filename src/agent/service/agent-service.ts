@@ -9,8 +9,8 @@ export class AgentService {
     this.repository = repository;
   }
 
-  public createAgent(name: string): Agent {
-    const agent = createAgent(name);
+  public createAgent(name: string, codespaceId?: string): Agent {
+    const agent = createAgent(name, codespaceId);
     return this.repository.create(agent);
   }
 
@@ -88,6 +88,26 @@ export class AgentService {
 
   public updateAgentStatus(id: string, status: AgentStatus): Agent | undefined {
     return this.repository.update(id, { status });
+  }
+
+  public linkAgentToCodespace(agentId: string, codespaceId: string): Agent | undefined {
+    return this.repository.update(agentId, { codespaceId });
+  }
+
+  public unlinkAgentFromCodespace(agentId: string): Agent | undefined {
+    return this.repository.update(agentId, { codespaceId: undefined });
+  }
+
+  public getAgentsByCodespace(codespaceId: string): Agent[] {
+    return this.repository.getAll().filter(agent => agent.codespaceId === codespaceId);
+  }
+
+  public getAgentsWithoutCodespace(): Agent[] {
+    return this.repository.getAll().filter(agent => !agent.codespaceId);
+  }
+
+  public hasAgentLinkedToCodespace(codespaceId: string): boolean {
+    return this.repository.getAll().some(agent => agent.codespaceId === codespaceId);
   }
 }
 

@@ -216,3 +216,82 @@ Deno.test("Unit - AgentService should handle deleted agents in selection", () =>
   assertEquals(selectedAgents.length, 1);
   assertEquals(selectedAgents[0].id, agent2.id);
 });
+
+Deno.test("Unit - AgentService should create agent with codespace ID", () => {
+  const repo = createAgentRepository();
+  const service = createAgentService(repo);
+  
+  const codespaceId = "test-codespace-123";
+  const agent = service.createAgent("Test Agent", codespaceId);
+  
+  assertEquals(agent.name, "Test Agent");
+  assertEquals(agent.codespaceId, codespaceId);
+});
+
+Deno.test("Unit - AgentService should link agent to codespace", () => {
+  const repo = createAgentRepository();
+  const service = createAgentService(repo);
+  
+  const agent = service.createAgent("Test Agent");
+  const codespaceId = "test-codespace-123";
+  
+  const updatedAgent = service.linkAgentToCodespace(agent.id, codespaceId);
+  
+  assertEquals(updatedAgent?.codespaceId, codespaceId);
+  assertEquals(updatedAgent?.id, agent.id);
+});
+
+Deno.test("Unit - AgentService should unlink agent from codespace", () => {
+  const repo = createAgentRepository();
+  const service = createAgentService(repo);
+  
+  const agent = service.createAgent("Test Agent", "test-codespace-123");
+  
+  const updatedAgent = service.unlinkAgentFromCodespace(agent.id);
+  
+  assertEquals(updatedAgent?.codespaceId, undefined);
+  assertEquals(updatedAgent?.id, agent.id);
+});
+
+Deno.test("Unit - AgentService should get agents by codespace", () => {
+  const repo = createAgentRepository();
+  const service = createAgentService(repo);
+  
+  const codespaceId = "test-codespace-123";
+  const agent1 = service.createAgent("Agent 1", codespaceId);
+  const agent2 = service.createAgent("Agent 2", "other-codespace");
+  const agent3 = service.createAgent("Agent 3", codespaceId);
+  
+  const agentsInCodespace = service.getAgentsByCodespace(codespaceId);
+  
+  assertEquals(agentsInCodespace.length, 2);
+  assertEquals(agentsInCodespace[0].id, agent1.id);
+  assertEquals(agentsInCodespace[1].id, agent3.id);
+});
+
+Deno.test("Unit - AgentService should get agents without codespace", () => {
+  const repo = createAgentRepository();
+  const service = createAgentService(repo);
+  
+  const agent1 = service.createAgent("Agent 1", "test-codespace-123");
+  const agent2 = service.createAgent("Agent 2");
+  const agent3 = service.createAgent("Agent 3");
+  
+  const agentsWithoutCodespace = service.getAgentsWithoutCodespace();
+  
+  assertEquals(agentsWithoutCodespace.length, 2);
+  assertEquals(agentsWithoutCodespace[0].id, agent2.id);
+  assertEquals(agentsWithoutCodespace[1].id, agent3.id);
+});
+
+Deno.test("Unit - AgentService should check if agent linked to codespace", () => {
+  const repo = createAgentRepository();
+  const service = createAgentService(repo);
+  
+  const codespaceId = "test-codespace-123";
+  service.createAgent("Agent 1", codespaceId);
+  service.createAgent("Agent 2");
+  
+  assertEquals(service.hasAgentLinkedToCodespace(codespaceId), true);
+  assertEquals(service.hasAgentLinkedToCodespace("non-existent"), false);
+});

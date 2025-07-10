@@ -61,4 +61,29 @@ Deno.test("Unit - Agent should have correct interface structure", () => {
   assertEquals(typeof agent.status, "string");
   assertEquals(agent.createdAt instanceof Date, true);
   assertEquals(Object.values(AgentStatus).includes(agent.status), true);
+  assertEquals(agent.codespaceId, undefined);
+});
+
+Deno.test("Unit - createAgent should create agent with codespace ID", () => {
+  const codespaceId = "test-codespace-123";
+  const agent = createAgent("Test Agent", codespaceId);
+  
+  assertEquals(agent.name, "Test Agent");
+  assertEquals(agent.status, AgentStatus.Idle);
+  assertEquals(agent.codespaceId, codespaceId);
+  assertEquals(typeof agent.id, "string");
+  assertEquals(agent.createdAt instanceof Date, true);
+});
+
+Deno.test("Unit - isValidAgent should return true for agent with codespace ID", () => {
+  const agent = createAgent("Test Agent", "codespace-123");
+  assertEquals(isValidAgent(agent), true);
+});
+
+Deno.test("Unit - isValidAgent should return false for agent with invalid codespace ID", () => {
+  const invalidAgent = {
+    ...createAgent("Test Agent"),
+    codespaceId: 123 // Should be string or undefined
+  };
+  assertEquals(isValidAgent(invalidAgent), false);
 });

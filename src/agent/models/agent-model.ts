@@ -10,14 +10,16 @@ export interface Agent {
   name: string;
   status: AgentStatus;
   createdAt: Date;
+  codespaceId?: string;
 }
 
-export function createAgent(name: string): Agent {
+export function createAgent(name: string, codespaceId?: string): Agent {
   return {
     id: crypto.randomUUID(),
     name,
     status: AgentStatus.Idle,
-    createdAt: new Date()
+    createdAt: new Date(),
+    codespaceId
   };
 }
 
@@ -33,6 +35,7 @@ export function isValidAgent(agent: unknown): agent is Agent {
     typeof obj.name === 'string' &&
     typeof obj.status === 'string' &&
     Object.values(AgentStatus).includes(obj.status as AgentStatus) &&
-    obj.createdAt instanceof Date
+    obj.createdAt instanceof Date &&
+    (obj.codespaceId === undefined || typeof obj.codespaceId === 'string')
   );
 }
