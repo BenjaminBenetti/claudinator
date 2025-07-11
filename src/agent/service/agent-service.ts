@@ -1,16 +1,57 @@
 import { Agent, AgentStatus, createAgent } from "../models/agent-model.ts";
 import { AgentRepository } from "../repo/agent-repo.ts";
+import { createCompleteGitHubCodespaceService, type GitHubCodespaceService } from "../../github/index.ts";
+import { createCompleteGitService, type GitService } from "../../git/index.ts";
+
+export interface CreateAgentOptions {
+  repository?: string; // Override auto-detected repo
+  branch?: string; // Override auto-detected branch
+}
 
 export class AgentService {
   private repository: AgentRepository;
   private selectedAgentIds: Set<string> = new Set();
+  private githubCodespaceService: GitHubCodespaceService;
+  private gitService: GitService;
 
-  constructor(repository: AgentRepository) {
+  constructor(
+    repository: AgentRepository,
+    githubCodespaceService: GitHubCodespaceService,
+    gitService: GitService
+  ) {
     this.repository = repository;
+    this.githubCodespaceService = githubCodespaceService;
+    this.gitService = gitService;
   }
 
   public createAgent(name: string, codespaceId?: string): Agent {
     const agent = createAgent(name, codespaceId);
+    return this.repository.create(agent);
+  }
+
+  public async createAgentWithAutoCodespace(name: string, options?: CreateAgentOptions): Promise<Agent> {
+    // Ensure we're in a git repository
+    const gitStatus = await this.gitService.getStatus();
+    if (!gitStatus.isRepository) {
+      throw new Error('Must be in a git repository to create an agent');
+    }
+
+    // Ensure GitHub authentication
+    await this.githubCodespaceService.ensureAuthenticated();
+
+    // Determine repository and branch
+    const repository = options?.repository || gitStatus.githubStatus?.repository;
+    const branch = options?.branch || gitStatus.currentBranch || undefined;
+
+    if (!repository) {
+      throw new Error('Could not determine GitHub repository. Ensure this is a GitHub repository or specify repository in options.');
+    }
+
+    // Create codespace for the repository/branch
+    const codespace = await this.githubCodespaceService.createCodespace(repository, branch);
+
+    // Create agent with the codespace ID
+    const agent = createAgent(name, codespace.name);
     return this.repository.create(agent);
   }
 
@@ -109,8 +150,96 @@ export class AgentService {
   public hasAgentLinkedToCodespace(codespaceId: string): boolean {
     return this.repository.getAll().some(agent => agent.codespaceId === codespaceId);
   }
+
+  public async createAgentWithCodespace(name: string, repository: string, branch?: string): Promise<Agent> {
+    // Ensure GitHub authentication
+    await this.githubCodespaceService.ensureAuthenticated();
+
+    // Create codespace for the specified repository/branch
+    const codespace = await this.githubCodespaceService.createCodespace(repository, branch);
+
+    // Create agent with the codespace ID
+    const agent = createAgent(name, codespace.name);
+    return this.repository.create(agent);
+  }
+
+  public async ensureAgentCodespace(agentId: string): Promise<boolean> {
+    const agent = this.repository.getById(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID '${agentId}' not found`);
+    }
+
+    // If agent already has a codespace, verify it exists
+    if (agent.codespaceId) {
+      try {
+        await this.githubCodespaceService.getCodespaceStatus(agent.codespaceId);
+        return true; // Codespace exists and is accessible
+      } catch (_error) {
+        // Codespace doesn't exist or is inaccessible, will create a new one
+        console.warn(`Codespace ${agent.codespaceId} not found for agent ${agentId}, creating new one`);
+      }
+    }
+
+    // Get git context to create codespace
+    const gitStatus = await this.gitService.getStatus();
+    if (!gitStatus.isRepository) {
+      throw new Error('Must be in a git repository to create codespace for agent');
+    }
+
+    const repository = gitStatus.githubStatus?.repository;
+    const branch = gitStatus.currentBranch || undefined;
+
+    if (!repository) {
+      throw new Error('Could not determine GitHub repository from git context');
+    }
+
+    // Create new codespace and link to agent
+    const codespace = await this.githubCodespaceService.createCodespace(repository, branch);
+    this.repository.update(agentId, { codespaceId: codespace.name });
+    
+    return true;
+  }
+
+  public async recreateAgentCodespace(agentId: string): Promise<boolean> {
+    const agent = this.repository.getById(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID '${agentId}' not found`);
+    }
+
+    // Delete existing codespace if it exists
+    if (agent.codespaceId) {
+      try {
+        await this.githubCodespaceService.deleteCodespace(agent.codespaceId);
+      } catch (error) {
+        // Ignore deletion errors - codespace might already be gone
+        console.warn(`Failed to delete existing codespace ${agent.codespaceId}:`, error);
+      }
+    }
+
+    // Get git context to create new codespace
+    const gitStatus = await this.gitService.getStatus();
+    if (!gitStatus.isRepository) {
+      throw new Error('Must be in a git repository to recreate codespace for agent');
+    }
+
+    const repository = gitStatus.githubStatus?.repository;
+    const branch = gitStatus.currentBranch || undefined;
+
+    if (!repository) {
+      throw new Error('Could not determine GitHub repository from git context');
+    }
+
+    // Create new codespace and link to agent
+    const codespace = await this.githubCodespaceService.createCodespace(repository, branch);
+    this.repository.update(agentId, { codespaceId: codespace.name });
+    
+    return true;
+  }
+
 }
 
 export function createAgentService(repository: AgentRepository): AgentService {
-  return new AgentService(repository);
+  const githubCodespaceService = createCompleteGitHubCodespaceService();
+  const gitService = createCompleteGitService();
+  return new AgentService(repository, githubCodespaceService, gitService);
 }

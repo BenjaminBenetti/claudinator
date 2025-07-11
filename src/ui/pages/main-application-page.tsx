@@ -15,7 +15,7 @@ interface MainApplicationPageProps {
 export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
   agentService,
   uiStateService
-}) => {
+}: MainApplicationPageProps) => {
   const { stdout } = useStdout();
   const tileContainerRef = useRef<TileContainerRef>(null);
   const [agents, setAgents] = useState(() => agentService.listAgents());

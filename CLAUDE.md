@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+# Concurrency    
+I have Claude max. Use AS MANY SUB AGENTS AS POSSIBLE, at all times. To reduce task completion time.
+
 # Primary Role
 
 You're a senior software engineer. Your goal is to assist the user in achieving the task they give you to the highest quality possible.

@@ -6,6 +6,7 @@ export interface GitStatus {
   workingDirectoryStatus: FileStatus[];
   repository: GitRepository | null;
   remotes: GitRemote[];
+  githubStatus: GitHubStatus | null;
 }
 
 export interface GitRepository {
@@ -17,6 +18,14 @@ export interface GitRemote {
   name: string;
   fetchUrl: string;
   pushUrl: string;
+}
+
+export interface GitHubStatus {
+  isGitHubRepository: boolean;
+  repository: string | null; // In "owner/repo" format
+  owner: string | null;
+  repositoryName: string | null;
+  primaryRemote: string | null; // The remote name used (e.g., "origin")
 }
 
 export interface FileStatus {

@@ -1,6 +1,10 @@
 // GitHub Domain Exports
 // This module provides all types, interfaces, and services for GitHub Codespace management
 
+import { createGhCliWrapper } from './utils/gh-cli-wrapper.ts';
+import { createGitHubCodespaceRepository } from './repo/github-codespace-repo.ts';
+import { createGitHubCodespaceService, type GitHubCodespaceService } from './service/github-codespace-service.ts';
+
 // Models
 export type {
   Codespace,
@@ -58,7 +62,7 @@ export type {
  * const codespaces = await service.listCodespaces();
  * ```
  */
-export function createCompleteGitHubCodespaceService(timeout?: number) {
+export function createCompleteGitHubCodespaceService(timeout?: number): GitHubCodespaceService {
   const ghWrapper = createGhCliWrapper(timeout);
   const repository = createGitHubCodespaceRepository(ghWrapper);
   return createGitHubCodespaceService(repository, ghWrapper);
