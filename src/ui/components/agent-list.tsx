@@ -21,7 +21,7 @@ export const AgentList: React.FC<AgentListProps> = ({
   onSelectionChange,
   onAgentSelect,
   onNewAgent
-}) => {
+}: AgentListProps) => {
   const isActive = focusArea === FocusArea.Sidebar;
   const totalItems = agents.length + 1; // +1 for "New Agent" button
   

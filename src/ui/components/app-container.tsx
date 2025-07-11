@@ -12,7 +12,7 @@ interface AppContainerProps {
 export const AppContainer: React.FC<AppContainerProps> = ({
   agentService,
   uiStateService
-}) => {
+}: AppContainerProps) => {
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {

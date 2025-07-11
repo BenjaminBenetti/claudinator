@@ -113,6 +113,29 @@ When developing UI:
 3. Test components with react-test-renderer
 4. Keep terminal constraints in mind (no mouse events, limited colors)
 
+### CRITICAL: React TypeScript Props Pattern
+**ALWAYS** include explicit type annotations on destructured props parameters for proper IntelliSense:
+
+```typescript
+// ✅ CORRECT - Enables IntelliSense on individual props
+export const Component: React.FC<ComponentProps> = ({
+  prop1,
+  prop2
+}: ComponentProps) => {
+  // Now prop1 and prop2 have proper IntelliSense
+}
+
+// ❌ INCORRECT - Missing type annotation breaks IntelliSense
+export const Component: React.FC<ComponentProps> = ({
+  prop1,
+  prop2
+}) => {
+  // prop1 and prop2 lack IntelliSense
+}
+```
+
+This pattern is REQUIRED for all React functional components with props, including forwardRef components.
+
 ## Important Reminders
 
 - Do what has been asked; nothing more, nothing less

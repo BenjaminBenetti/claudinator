@@ -30,7 +30,7 @@ export const TileContainer = React.forwardRef<TileContainerRef, TileContainerPro
   focusedTileIndex = 0,
   onTileFocus,
   onTileNavigation
-}, ref) => {
+}: TileContainerProps, ref) => {
   const { stdout } = useStdout();
   
   const containerWidth = stdout.columns - 27; // Account for sidebar width

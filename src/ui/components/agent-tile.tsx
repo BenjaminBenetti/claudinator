@@ -10,7 +10,7 @@ interface AgentTileProps {
 export const AgentTile: React.FC<AgentTileProps> = ({
   agent,
   isFocused = false
-}) => {
+}: AgentTileProps) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'green';
