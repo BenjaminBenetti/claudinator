@@ -203,7 +203,7 @@ Deno.test('createCodespace success', async () => {
   assertEquals(mockRepo.createCalls.length, 1);
   assertEquals(mockRepo.createCalls[0].repository, 'owner/repo');
   assertEquals(mockRepo.createCalls[0].branch, 'feature-branch');
-  assertEquals(mockRepo.createCalls[0].machineType, '2core');
+  assertEquals(mockRepo.createCalls[0].machineType, 'basicLinux32gb');
 });
 
 Deno.test('createCodespace validation - invalid repository', async () => {

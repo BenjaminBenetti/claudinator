@@ -139,9 +139,17 @@ Deno.test({
       last_used_at: '2024-01-01T00:00:00Z'
     }];
 
-    MockCommand.setMockResponse(['codespace', 'create', '--repo', 'owner/repo', '--json'], {
+    // Mock the create command (without --json flag)
+    MockCommand.setMockResponse(['codespace', 'create', '--repo', 'owner/repo'], {
       code: 0,
-      stdout: JSON.stringify(mockData),
+      stdout: '✓ Codespaces usage for this repository is paid for by test-owner\nnew-codespace-123',
+      stderr: '',
+    });
+
+    // Mock the view command to get full details
+    MockCommand.setMockResponse(['codespace', 'view', '--codespace', 'new-codespace-123', '--json'], {
+      code: 0,
+      stdout: JSON.stringify(mockData[0]),
       stderr: '',
     });
 
@@ -173,13 +181,21 @@ Deno.test({
       last_used_at: '2024-01-01T00:00:00Z'
     }];
 
+    // Mock the create command (without --json flag)
     MockCommand.setMockResponse([
-      'codespace', 'create', '--repo', 'owner/repo', 
-      '--branch', 'feature-branch', '--machine', '4core', 
-      '--retention-period', '30d', '--json'
+      'codespace', 'create', '--repo', 'owner/repo',
+      '--branch', 'feature-branch', '--machine', 'basicLinux32gb',
+      '--retention-period', '30d'
     ], {
       code: 0,
-      stdout: JSON.stringify(mockData),
+      stdout: '✓ Codespaces usage for this repository is paid for by test-owner\nfeature-codespace-123',
+      stderr: '',
+    });
+
+    // Mock the view command to get full details
+    MockCommand.setMockResponse(['codespace', 'view', '--codespace', 'feature-codespace-123', '--json'], {
+      code: 0,
+      stdout: JSON.stringify(mockData[0]),
       stderr: '',
     });
 
@@ -187,10 +203,10 @@ Deno.test({
     const codespace = await wrapper.createCodespace({
       repository: 'owner/repo',
       branch: 'feature-branch',
-      machineType: '4core',
+      machineType: 'basicLinux32gb',
       retentionPeriod: 30
     });
-    
+
     assertEquals(codespace.name, 'feature-codespace-123');
     assertEquals(codespace.branch, 'feature-branch');
   },
@@ -310,6 +326,54 @@ Deno.test({
       () => wrapper.listCodespaces(),
       GitHubCliError,
       'Failed to parse JSON output'
+    );
+  },
+  sanitizeOps: false,
+  sanitizeResources: false,
+});
+
+Deno.test({
+  name: 'createCodespace handles parsing errors gracefully',
+  async fn() {
+    MockCommand.clearMocks();
+
+    // Mock create command with invalid output (no codespace name)
+    MockCommand.setMockResponse(['codespace', 'create', '--repo', 'owner/repo'], {
+      code: 0,
+      stdout: '✓ Codespaces usage for this repository is paid for by test-owner\n',
+      stderr: '',
+    });
+
+    const wrapper = new GhCliWrapper();
+
+    await assertRejects(
+      () => wrapper.createCodespace({ repository: 'owner/repo' }),
+      GitHubCliError,
+      'Could not extract codespace name from create output'
+    );
+  },
+  sanitizeOps: false,
+  sanitizeResources: false,
+});
+
+Deno.test({
+  name: 'createCodespace handles create command failure',
+  async fn() {
+    MockCommand.clearMocks();
+
+    // Mock create command failure
+    MockCommand.setMockResponse(['codespace', 'create', '--repo', 'owner/repo'], {
+      code: 1,
+      stdout: '',
+      stderr: 'Repository not found',
+    });
+
+    const wrapper = new GhCliWrapper();
+
+    await assertRejects(
+      () => wrapper.createCodespace({ repository: 'owner/repo' }),
+      GitHubCliError,
+      'Failed to create codespace: Repository not found'
     );
   },
   sanitizeOps: false,

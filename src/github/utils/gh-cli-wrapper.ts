@@ -51,11 +51,11 @@ export class GhCliWrapper implements IGhCliWrapper {
 
   async createCodespace(options: CreateCodespaceOptions): Promise<Codespace> {
     const args = ['codespace', 'create', '--repo', options.repository];
-    
+
     if (options.branch) {
       args.push('--branch', options.branch);
     }
-    
+
     if (options.machineType) {
       args.push('--machine', options.machineType);
     }
@@ -64,7 +64,8 @@ export class GhCliWrapper implements IGhCliWrapper {
       args.push('--retention-period', `${options.retentionPeriod}d`);
     }
 
-    args.push('--json');
+    // Note: gh codespace create does not support --json flag
+    // It returns plain text output with the codespace name
 
     const result = await this.executeCommand(args);
     if (!result.success) {
@@ -76,16 +77,18 @@ export class GhCliWrapper implements IGhCliWrapper {
       );
     }
 
-    const codespaces = this.parseCodespaces(result.stdout);
-    if (codespaces.length === 0) {
+    // Parse the plain text output to extract codespace name
+    const codespaceName = this.parseCodespaceNameFromCreateOutput(result.stdout);
+    if (!codespaceName) {
       throw new GitHubCliError(
-        'No codespace data returned after creation',
+        'Could not extract codespace name from create output',
         args.join(' '),
         0
       );
     }
 
-    return codespaces[0];
+    // Get full codespace details using the name
+    return await this.getCodespaceStatus(codespaceName);
   }
 
   async deleteCodespace(name: string, force = false): Promise<void> {
@@ -197,6 +200,30 @@ export class GhCliWrapper implements IGhCliWrapper {
         -1
       );
     }
+  }
+
+  private parseCodespaceNameFromCreateOutput(output: string): string | null {
+    // The output format from gh codespace create is:
+    // ✓ Codespaces usage for this repository is paid for by <owner>
+    // <codespace-name>
+    //
+    // We need to extract the codespace name from the last non-empty line
+    const lines = output.trim().split('\n').filter(line => line.trim());
+
+    if (lines.length === 0) {
+      return null;
+    }
+
+    // The codespace name should be the last line
+    const lastLine = lines[lines.length - 1].trim();
+
+    // Codespace names follow a pattern like: cautious-palm-tree-4qj6r54q9w6cqjjj
+    // They contain lowercase letters, numbers, and hyphens
+    if (/^[a-z0-9-]+$/.test(lastLine)) {
+      return lastLine;
+    }
+
+    return null;
   }
 
   private mapToCodespace(raw: Record<string, unknown>): Codespace {

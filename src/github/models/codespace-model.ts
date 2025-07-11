@@ -1,3 +1,5 @@
+export type GitHubMachineType = 'basicLinux32gb' | 'standardLinux32gb' | 'premiumLinux' | 'largePremiumLinux';
+
 export interface Codespace {
   name: string;
   displayName: string;
@@ -17,6 +19,6 @@ export type CodespaceState = 'Available' | 'Shutdown' | 'Starting' | 'Rebuilding
 export interface CreateCodespaceOptions {
   repository: string;
   branch?: string;
-  machineType?: string;
+  machineType?: GitHubMachineType;
   retentionPeriod?: number;
 }

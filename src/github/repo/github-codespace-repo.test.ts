@@ -167,7 +167,7 @@ Deno.test('create with valid options', async () => {
   const options: CreateCodespaceOptions = {
     repository: 'owner/repo',
     branch: 'feature-branch',
-    machineType: '4core',
+    machineType: 'standardLinux32gb',
   };
 
   const result = await repository.create(options);

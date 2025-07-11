@@ -4,6 +4,7 @@ import { AgentList } from "../components/agent-list.tsx";
 import { TileContainer, TileContainerRef } from "../components/tile-container.tsx";
 import { AgentTile } from "../components/agent-tile.tsx";
 import { HelpBar } from "../components/help-bar.tsx";
+import { ErrorModal } from "../components/error-modal.tsx";
 import { AgentService } from "../../agent/service/agent-service.ts";
 import { UIStateService, FocusArea } from "../service/ui-state-service.ts";
 
@@ -23,6 +24,8 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
   const [focusArea, setFocusArea] = useState(() => uiStateService.getFocusArea());
   const [selectedListIndex, setSelectedListIndex] = useState(() => uiStateService.getSelectedListIndex());
   const [focusedTileIndex, setFocusedTileIndex] = useState(() => uiStateService.getFocusedTileIndex());
+  const [errorModalVisible, setErrorModalVisible] = useState(() => uiStateService.isErrorModalVisible());
+  const [errorModalMessage, setErrorModalMessage] = useState(() => uiStateService.getErrorModalMessage());
 
   const refreshAgents = () => {
     setAgents(agentService.listAgents());
@@ -39,14 +42,21 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
     refreshAgents();
   };
 
-  const handleNewAgent = () => {
-    const newAgent = agentService.createAgent(`Agent ${agentService.getAgentCount() + 1}`);
-    refreshAgents();
-    
-    // Select the new agent in the list
-    const newIndex = agents.findIndex(a => a.id === newAgent.id);
-    if (newIndex !== -1) {
-      handleSelectionChange(newIndex);
+  const handleNewAgent = async () => {
+    try {
+      const newAgent = await agentService.createAgentWithAutoCodespace(`Agent ${agentService.getAgentCount() + 1}`);
+      refreshAgents();
+      
+      // Select the new agent in the list
+      const newIndex = agents.findIndex(a => a.id === newAgent.id);
+      if (newIndex !== -1) {
+        handleSelectionChange(newIndex);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      uiStateService.showErrorModal(`Failed to create agent with codespace: ${errorMessage}`);
+      setErrorModalVisible(true);
+      setErrorModalMessage(uiStateService.getErrorModalMessage());
     }
   };
 
@@ -60,7 +70,18 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
     setFocusedTileIndex(index);
   };
 
+  const handleErrorModalClose = () => {
+    uiStateService.hideErrorModal();
+    setErrorModalVisible(false);
+    setErrorModalMessage("");
+  };
+
   useInput((input, key) => {
+    // Don't handle input when error modal is visible
+    if (errorModalVisible) {
+      return;
+    }
+
     if (key.tab) {
       uiStateService.cycleFocus(selectedAgents.length);
       setFocusArea(uiStateService.getFocusArea());
@@ -88,32 +109,39 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
   ));
 
   return (
-    <Box flexDirection="row" width="100%" height={stdout.rows}>
-      <AgentList
-        agents={agents}
-        selectedIndex={selectedListIndex}
-        focusArea={focusArea}
-        selectedAgents={selectedAgents}
-        onSelectionChange={handleSelectionChange}
-        onAgentSelect={handleAgentSelect}
-        onNewAgent={handleNewAgent}
-      />
-      
-      <Box flexDirection="column" marginLeft={1} height="100%">
-        <Box flexGrow={1}>
-          <TileContainer
-            ref={tileContainerRef}
-            borderStyle="round"
-            borderColor={focusArea === FocusArea.Tile ? "blue" : "gray"}
-            emptyMessage="Select agents from the sidebar to view their details"
-            focusedTileIndex={focusedTileIndex}
-            onTileFocus={handleTileFocusChange}
-          >
-            {tileChildren}
-          </TileContainer>
+    <>
+      <Box flexDirection="row" width="100%" height={stdout.rows}>
+        <AgentList
+          agents={agents}
+          selectedIndex={selectedListIndex}
+          focusArea={focusArea}
+          selectedAgents={selectedAgents}
+          onSelectionChange={handleSelectionChange}
+          onAgentSelect={handleAgentSelect}
+          onNewAgent={handleNewAgent}
+        />
+        
+        <Box flexDirection="column" marginLeft={1} height="100%">
+          <Box flexGrow={1}>
+            <TileContainer
+              ref={tileContainerRef}
+              borderStyle="round"
+              borderColor={focusArea === FocusArea.Tile ? "blue" : "gray"}
+              emptyMessage="Select agents from the sidebar to view their details"
+              focusedTileIndex={focusedTileIndex}
+              onTileFocus={handleTileFocusChange}
+            >
+              {tileChildren}
+            </TileContainer>
+          </Box>
+          <HelpBar focusArea={focusArea} />
         </Box>
-        <HelpBar focusArea={focusArea} />
       </Box>
-    </Box>
+      <ErrorModal
+        isVisible={errorModalVisible}
+        message={errorModalMessage}
+        onClose={handleErrorModalClose}
+      />
+    </>
   );
 };

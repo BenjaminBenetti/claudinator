@@ -39,12 +39,12 @@ Deno.test('CreateCodespaceOptions interface validation', () => {
   const fullOptions: CreateCodespaceOptions = {
     repository: 'owner/repo',
     branch: 'feature-branch',
-    machineType: '4core',
+    machineType: 'basicLinux32gb',
     retentionPeriod: 30
   };
 
   assertEquals(minimalOptions.repository, 'owner/repo');
   assertEquals(fullOptions.branch, 'feature-branch');
-  assertEquals(fullOptions.machineType, '4core');
+  assertEquals(fullOptions.machineType, 'basicLinux32gb');
   assertEquals(fullOptions.retentionPeriod, 30);
 });

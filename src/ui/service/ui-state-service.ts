@@ -7,6 +7,8 @@ export class UIStateService {
   private currentFocus: FocusArea = FocusArea.Sidebar;
   private selectedListIndex: number = 0;
   private focusedTileIndex: number = 0;
+  private errorModalVisible: boolean = false;
+  private errorModalMessage: string = "";
 
   public getFocusArea(): FocusArea {
     return this.currentFocus;
@@ -59,10 +61,30 @@ export class UIStateService {
     this.focusedTileIndex = Math.max(0, index);
   }
 
+  public showErrorModal(message: string): void {
+    this.errorModalMessage = message;
+    this.errorModalVisible = true;
+  }
+
+  public hideErrorModal(): void {
+    this.errorModalVisible = false;
+    this.errorModalMessage = "";
+  }
+
+  public isErrorModalVisible(): boolean {
+    return this.errorModalVisible;
+  }
+
+  public getErrorModalMessage(): string {
+    return this.errorModalMessage;
+  }
+
   public resetState(): void {
     this.currentFocus = FocusArea.Sidebar;
     this.selectedListIndex = 0;
     this.focusedTileIndex = 0;
+    this.errorModalVisible = false;
+    this.errorModalMessage = "";
   }
 }
 

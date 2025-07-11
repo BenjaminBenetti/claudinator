@@ -58,7 +58,7 @@ export class GitHubCodespaceServiceImpl implements GitHubCodespaceService {
       const options: CreateCodespaceOptions = {
         repository,
         branch,
-        machineType: '2core', // Default machine type as per plan
+        machineType: 'basicLinux32gb', // Default machine type as per plan
       };
 
       const codespace = await this.repository.create(options);
