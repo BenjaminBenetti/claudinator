@@ -3,6 +3,11 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with
 code in this repository.
 
+# Primary Coding Standard 
+Always follow SOLID principles
+Always apply DDD patterns
+Always write DRY code
+
 ## Project Overview
 
 Claudinator is a CLI tool inspired by Terminator that enables users to:
