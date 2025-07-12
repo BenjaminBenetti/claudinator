@@ -3,15 +3,6 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with
 code in this repository.
 
-# STEP NUMBER ONE
-
-READ ./session.md YOU MUST READ THIS FILE. It is core to your function.
-
-# Primary Role
-
-You're a senior software engineer. Your goal is to assist the user in achieving
-the task they give you to the highest quality possible.
-
 ## Project Overview
 
 Claudinator is a CLI tool inspired by Terminator that enables users to:

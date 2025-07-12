@@ -12,15 +12,17 @@ export interface Agent {
   status: AgentStatus;
   createdAt: Date;
   codespaceId?: string;
+  codespaceDisplayName?: string;
 }
 
-export function createAgent(name: string, codespaceId?: string): Agent {
+export function createAgent(name: string, codespaceId?: string, codespaceDisplayName?: string): Agent {
   return {
     id: crypto.randomUUID(),
     name,
     status: AgentStatus.Idle,
     createdAt: new Date(),
     codespaceId,
+    codespaceDisplayName,
   };
 }
 
@@ -31,6 +33,7 @@ export function createProvisioningAgent(name: string): Agent {
     status: AgentStatus.Provisioning,
     createdAt: new Date(),
     codespaceId: undefined,
+    codespaceDisplayName: undefined,
   };
 }
 
@@ -47,6 +50,7 @@ export function isValidAgent(agent: unknown): agent is Agent {
     typeof obj.status === "string" &&
     Object.values(AgentStatus).includes(obj.status as AgentStatus) &&
     obj.createdAt instanceof Date &&
-    (obj.codespaceId === undefined || typeof obj.codespaceId === "string")
+    (obj.codespaceId === undefined || typeof obj.codespaceId === "string") &&
+    (obj.codespaceDisplayName === undefined || typeof obj.codespaceDisplayName === "string")
   );
 }

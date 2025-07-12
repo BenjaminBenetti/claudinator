@@ -228,14 +228,14 @@ Deno.test("Unit - AgentService should create agent with codespace ID", () => {
   assertEquals(agent.codespaceId, codespaceId);
 });
 
-Deno.test("Unit - AgentService should link agent to codespace", () => {
+Deno.test("Unit - AgentService should link agent to codespace", async () => {
   const repo = createAgentRepository();
   const service = createAgentService(repo);
 
   const agent = service.createAgent("Test Agent");
   const codespaceId = "test-codespace-123";
 
-  const updatedAgent = service.linkAgentToCodespace(agent.id, codespaceId);
+  const updatedAgent = await service.linkAgentToCodespace(agent.id, codespaceId);
 
   assertEquals(updatedAgent?.codespaceId, codespaceId);
   assertEquals(updatedAgent?.id, agent.id);

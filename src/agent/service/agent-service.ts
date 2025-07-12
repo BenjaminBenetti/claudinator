@@ -127,6 +127,7 @@ export class AgentService {
       // Update agent with codespace ID and set status to idle
       this.repository.update(agentId, {
         codespaceId: codespace.name,
+        codespaceDisplayName: codespace.display_name || undefined,
         status: AgentStatus.Idle,
       });
     } catch (error) {
@@ -289,15 +290,28 @@ export class AgentService {
     }
   }
 
-  public linkAgentToCodespace(
+  public async linkAgentToCodespace(
     agentId: string,
     codespaceId: string,
-  ): Agent | undefined {
-    return this.repository.update(agentId, { codespaceId });
+  ): Promise<Agent | undefined> {
+    try {
+      // Get codespace details to extract display name
+      const codespace = await this.githubCodespaceService.getCodespaceStatus(codespaceId);
+      return this.repository.update(agentId, { 
+        codespaceId,
+        codespaceDisplayName: codespace.display_name || undefined,
+      });
+    } catch (error) {
+      // If we can't get codespace details, just link with the ID
+      return this.repository.update(agentId, { codespaceId });
+    }
   }
 
   public unlinkAgentFromCodespace(agentId: string): Agent | undefined {
-    return this.repository.update(agentId, { codespaceId: undefined });
+    return this.repository.update(agentId, { 
+      codespaceId: undefined,
+      codespaceDisplayName: undefined,
+    });
   }
 
   public getAgentsByCodespace(codespaceId: string): Agent[] {
@@ -374,7 +388,10 @@ export class AgentService {
       repository,
       branch,
     );
-    this.repository.update(agentId, { codespaceId: codespace.name });
+    this.repository.update(agentId, { 
+      codespaceId: codespace.name,
+      codespaceDisplayName: codespace.display_name || undefined,
+    });
 
     return true;
   }
@@ -418,7 +435,10 @@ export class AgentService {
       repository,
       branch,
     );
-    this.repository.update(agentId, { codespaceId: codespace.name });
+    this.repository.update(agentId, { 
+      codespaceId: codespace.name,
+      codespaceDisplayName: codespace.display_name || undefined,
+    });
 
     return true;
   }
