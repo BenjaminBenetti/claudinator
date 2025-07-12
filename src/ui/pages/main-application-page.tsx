@@ -74,7 +74,9 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
       // Set up periodic refresh to capture status updates during provisioning
       const refreshInterval = setInterval(() => {
         const currentAgent = agentService.getAgent(newAgent.id);
-        if (currentAgent && (currentAgent.status !== AgentStatus.Provisioning)) {
+        if (
+          currentAgent && (currentAgent.status !== AgentStatus.Provisioning)
+        ) {
           clearInterval(refreshInterval);
         }
         refreshAgents();

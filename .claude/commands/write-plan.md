@@ -3,7 +3,7 @@
 You will write a detailed plan on how to achieve the request found in the file
 $ARGUMENTS Write this plan in to a `/plan/<request name>-plan.md` file.
 
-## Planing Process 
+## Planing Process
 
 Use subagents to complete as many steps as possible at the same time.
 

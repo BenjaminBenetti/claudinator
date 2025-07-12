@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { Agent } from "../../agent/models/agent-model.ts";
 import { FocusArea } from "../service/ui-state-service.ts";
@@ -25,6 +25,26 @@ export const AgentList: React.FC<AgentListProps> = ({
   const isActive = focusArea === FocusArea.Sidebar;
   const totalItems = agents.length + 1; // +1 for "New Agent" button
 
+  // Spinner state for provisioning indicator
+  const [spinnerIndex, setSpinnerIndex] = useState(0);
+  const spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+  useEffect(() => {
+    const hasProvisioningAgents = agents.some((agent) =>
+      agent.status === "provisioning"
+    );
+
+    if (hasProvisioningAgents) {
+      const spinnerInterval = setInterval(() => {
+        setSpinnerIndex((prev: number) => (prev + 1) % spinner.length);
+      }, 100);
+
+      return () => {
+        clearInterval(spinnerInterval);
+      };
+    }
+  }, [agents]);
+
   useInput((input, key) => {
     if (!isActive) return;
 
@@ -50,7 +70,7 @@ export const AgentList: React.FC<AgentListProps> = ({
       case "running":
         return "blue";
       case "provisioning":
-        return "red";
+        return "yellow";
       case "error":
         return "red";
       default:
@@ -115,8 +135,9 @@ export const AgentList: React.FC<AgentListProps> = ({
                   {" " + agent.name}
                 </Text>
                 {agent.status === "provisioning" && (
-                  <Text color="red" dimColor>
-                    {"   Provisioning"}
+                  <Text color="yellow">
+                    {"   "}
+                    {spinner[spinnerIndex]} Provisioning...
                   </Text>
                 )}
               </Box>

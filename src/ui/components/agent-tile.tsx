@@ -18,7 +18,7 @@ export const AgentTile: React.FC<AgentTileProps> = ({
       case "running":
         return "blue";
       case "provisioning":
-        return "red";
+        return "yellow";
       case "error":
         return "red";
       default:
