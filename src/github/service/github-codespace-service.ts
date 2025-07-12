@@ -1,6 +1,7 @@
 import type { Codespace, CreateCodespaceOptions } from '../models/codespace-model.ts';
 import type { GitHubCodespaceRepository } from '../repo/github-codespace-repo.ts';
 import type { IGitHubAuthService } from './github-auth-service.ts';
+import { generateClaudinatorName } from '../../utils/name-generator.ts';
 
 export interface GitHubCodespaceService {
   ensureAuthenticated(): Promise<void>;
@@ -65,7 +66,8 @@ export class GitHubCodespaceServiceImpl implements GitHubCodespaceService {
       const [owner, repo] = repository.split('/');
       const options: CreateCodespaceOptions = {
         ref: branch || 'main',
-        machine: 'basicLinux32gb', // Default machine type as per plan
+        machine: 'basicLinux32gb',
+        display_name: generateClaudinatorName(), // Use claudinator naming convention
       };
 
       const codespace = await this.repository.create(owner, repo, options);
