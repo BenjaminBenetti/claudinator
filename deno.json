@@ -17,5 +17,12 @@
   },
   "compilerOptions": {
     "noImplicitAny": false
+  },
+  "lint": {
+    "rules": {
+      "exclude": [
+        "no-explicit-any"
+      ]
+    }
   }
 }

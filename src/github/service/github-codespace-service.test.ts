@@ -7,6 +7,7 @@ import {
 import type { GitHubCodespaceRepository } from '../repo/github-codespace-repo.ts';
 import type { IGitHubAuthService } from './github-auth-service.ts';
 import type { Codespace, CreateCodespaceOptions } from '../models/codespace-model.ts';
+import { createMinimalRepository, createSimpleUser } from '../utils/test-helpers.ts';
 
 // Mock implementations
 class MockGitHubCodespaceRepository implements GitHubCodespaceRepository {
@@ -24,6 +25,7 @@ class MockGitHubCodespaceRepository implements GitHubCodespaceRepository {
   private shouldThrowOnFind = false;
   private shouldThrowOnStart = false;
   private shouldThrowOnStop = false;
+  private codespaceStateMap = new Map<string, string>();
 
   setMockCodespaces(codespaces: Codespace[]) {
     this.mockCodespaces = codespaces;
@@ -62,7 +64,10 @@ class MockGitHubCodespaceRepository implements GitHubCodespaceRepository {
     if (this.shouldThrowOnFind) {
       throw new Error('Mock find error');
     }
-    const found = this.mockCodespaces.find(cs => cs.name === name);
+    let found = this.mockCodespaces.find(cs => cs.name === name);
+    if (found && this.codespaceStateMap.has(name)) {
+      found = { ...found, state: this.codespaceStateMap.get(name) as any };
+    }
     return await Promise.resolve(found || null);
   }
 
@@ -76,18 +81,60 @@ class MockGitHubCodespaceRepository implements GitHubCodespaceRepository {
       id: 123456789,
       name: 'mock-codespace-123',
       environment_id: 'env-123',
-      owner: { login: owner, id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
-      billable_owner: { login: owner, id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
-      repository: {
+      owner: { 
+        login: owner, 
+        id: 1, 
+        node_id: 'node1', 
+        avatar_url: '', 
+        gravatar_id: null,
+        url: '', 
+        html_url: '', 
+        followers_url: '',
+        following_url: '',
+        gists_url: '',
+        starred_url: '',
+        subscriptions_url: '',
+        organizations_url: '',
+        repos_url: '',
+        events_url: '',
+        received_events_url: '',
+        type: 'User', 
+        site_admin: false 
+      },
+      billable_owner: { 
+        login: owner, 
+        id: 1, 
+        node_id: 'node1', 
+        avatar_url: '', 
+        gravatar_id: null,
+        url: '', 
+        html_url: '', 
+        followers_url: '',
+        following_url: '',
+        gists_url: '',
+        starred_url: '',
+        subscriptions_url: '',
+        organizations_url: '',
+        repos_url: '',
+        events_url: '',
+        received_events_url: '',
+        type: 'User', 
+        site_admin: false 
+      },
+      repository: createMinimalRepository({
         id: 67890,
         node_id: 'repo-node',
         name: repo,
         full_name: `${owner}/${repo}`,
-        owner: { login: owner, id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
+        owner: createSimpleUser({ 
+          login: owner, 
+          id: 1, 
+          node_id: 'node1'
+        }),
         private: false,
         html_url: `https://github.com/${owner}/${repo}`,
         description: null
-      },
+      }),
       machine: {
         name: options.machine || 'basicLinux32gb',
         display_name: 'Basic',
@@ -102,7 +149,7 @@ class MockGitHubCodespaceRepository implements GitHubCodespaceRepository {
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z',
       last_used_at: '2024-01-01T00:00:00Z',
-      state: 'Available',
+      state: 'Starting',
       url: 'https://api.github.com/user/codespaces/mock-codespace-123',
       git_status: {
         ahead: 0,
@@ -111,14 +158,23 @@ class MockGitHubCodespaceRepository implements GitHubCodespaceRepository {
         has_uncommitted_changes: false,
         ref: options.ref || 'main'
       },
-      location: 'UsEast',
+      location: 'EastUs',
       idle_timeout_minutes: 30,
       web_url: 'https://mock-codespace-123.github.dev',
       machines_url: 'https://api.github.com/user/codespaces/mock-codespace-123/machines',
       start_url: 'https://api.github.com/user/codespaces/mock-codespace-123/start',
       stop_url: 'https://api.github.com/user/codespaces/mock-codespace-123/stop',
-      recent_folders: []
+      recent_folders: [],
+      pulls_url: 'https://api.github.com/user/codespaces/mock-codespace-123/pulls'
     };
+
+    // Add the codespace to our collection and simulate state transition
+    this.mockCodespaces.push(newCodespace);
+    
+    // Simulate transition from Starting to Available after a brief delay
+    setTimeout(() => {
+      this.codespaceStateMap.set(newCodespace.name, 'Available');
+    }, 10);
 
     return await Promise.resolve(newCodespace);
   }
@@ -153,7 +209,7 @@ class MockGitHubCodespaceRepository implements GitHubCodespaceRepository {
     }
     const found = this.mockCodespaces.find(cs => cs.name === name);
     if (!found) throw new Error('Codespace not found');
-    return { ...found, state: 'Stopped' };
+    return { ...found, state: 'Shutdown' };
   }
 }
 
@@ -418,7 +474,7 @@ Deno.test('getCodespaceStatus not found', async () => {
 Deno.test('startCodespace success', async () => {
   const mockRepository = new MockGitHubCodespaceRepository();
   const mockAuthService = new MockGitHubAuthService();
-  const mockCodespace = createMockCodespace({ name: 'test-codespace', state: 'Stopped' });
+  const mockCodespace = createMockCodespace({ name: 'test-codespace', state: 'Shutdown' });
   mockRepository.setMockCodespaces([mockCodespace]);
 
   const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
@@ -437,7 +493,7 @@ Deno.test('stopCodespace success', async () => {
   const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
   const result = await service.stopCodespace('test-codespace');
 
-  assertEquals(result.state, 'Stopped');
+  assertEquals(result.state, 'Shutdown');
   assertEquals(mockRepository.stopCalls, ['test-codespace']);
 });
 

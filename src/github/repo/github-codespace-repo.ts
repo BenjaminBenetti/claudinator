@@ -87,9 +87,10 @@ export class GitHubCodespaceRepositoryImpl implements GitHubCodespaceRepository 
    * @returns Promise resolving to created codespace
    */
   async create(owner: string, repo: string, options: CreateCodespaceOptions): Promise<Codespace> {
-    try {
-      this.validateCreateOptions(owner, repo, options);
+    // Validate inputs first (let validation errors bubble up)
+    this.validateCreateOptions(owner, repo, options);
 
+    try {
       const octokit = await this.octokitClient.getOctokit();
 
       // First, get the repository information to obtain the repository ID

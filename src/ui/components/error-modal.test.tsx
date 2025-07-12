@@ -8,7 +8,7 @@ Deno.test("ErrorModal - should not render when not visible", () => {
   const component = TestRenderer.create(
     <ErrorModal
       isVisible={false}
-      message="Test error message"
+      error="Test error message"
       onClose={mockOnClose}
     />
   );
@@ -21,7 +21,7 @@ Deno.test("ErrorModal - should render error message when visible", async () => {
   const component = TestRenderer.create(
     <ErrorModal
       isVisible
-      message="Test error message"
+      error="Test error message"
       onClose={mockOnClose}
     />
   );
@@ -42,7 +42,7 @@ Deno.test("ErrorModal - should render with proper structure when visible", async
   const component = TestRenderer.create(
     <ErrorModal
       isVisible
-      message="Test error message"
+      error="Test error message"
       onClose={mockOnClose}
     />
   );

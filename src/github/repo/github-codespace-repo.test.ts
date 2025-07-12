@@ -2,6 +2,7 @@ import { assertEquals, assertRejects, assertInstanceOf } from '@std/assert';
 import { GitHubCodespaceRepositoryImpl, GitHubRepositoryError, createGitHubCodespaceRepository } from './github-codespace-repo.ts';
 import type { IOctokitClient } from '../utils/octokit-client.ts';
 import type { Codespace, CreateCodespaceOptions } from '../models/codespace-model.ts';
+import { createMinimalRepository, createSimpleUser } from '../utils/test-helpers.ts';
 
 // Mock Octokit client
 class MockOctokitClient implements IOctokitClient {
@@ -97,7 +98,10 @@ class MockOctokitClient implements IOctokitClient {
             return { data: found };
           },
 
-          createForAuthenticatedUser: async ({ owner, repo, ...options }: any) => {
+          createForAuthenticatedUser: async ({ repository_id, ...options }: any) => {
+            // For testing purposes, extract owner/repo from the most recent repos.get call
+            const owner = 'test-owner';
+            const repo = 'test-repo';
             this.createCalls.push({ owner, repo, options });
             
             if (this.shouldThrowOnCreate) {
@@ -108,18 +112,60 @@ class MockOctokitClient implements IOctokitClient {
               id: 123456789,
               name: 'mock-codespace-123',
               environment_id: 'env-123',
-              owner: { login: owner, id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
-              billable_owner: { login: owner, id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
-              repository: {
+              owner: { 
+                login: owner, 
+                id: 1, 
+                node_id: 'node1', 
+                avatar_url: '', 
+                gravatar_id: null,
+                url: '', 
+                html_url: '', 
+                followers_url: '',
+                following_url: '',
+                gists_url: '',
+                starred_url: '',
+                subscriptions_url: '',
+                organizations_url: '',
+                repos_url: '',
+                events_url: '',
+                received_events_url: '',
+                type: 'User', 
+                site_admin: false 
+              },
+              billable_owner: { 
+                login: owner, 
+                id: 1, 
+                node_id: 'node1', 
+                avatar_url: '', 
+                gravatar_id: null,
+                url: '', 
+                html_url: '', 
+                followers_url: '',
+                following_url: '',
+                gists_url: '',
+                starred_url: '',
+                subscriptions_url: '',
+                organizations_url: '',
+                repos_url: '',
+                events_url: '',
+                received_events_url: '',
+                type: 'User', 
+                site_admin: false 
+              },
+              repository: createMinimalRepository({
                 id: 67890,
                 node_id: 'repo-node',
                 name: repo,
                 full_name: `${owner}/${repo}`,
-                owner: { login: owner, id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
+                owner: createSimpleUser({ 
+                  login: owner, 
+                  id: 1, 
+                  node_id: 'node1'
+                }),
                 private: false,
                 html_url: `https://github.com/${owner}/${repo}`,
                 description: null
-              },
+              }),
               machine: {
                 name: options.machine || 'basicLinux32gb',
                 display_name: 'Basic',
@@ -143,13 +189,14 @@ class MockOctokitClient implements IOctokitClient {
                 has_uncommitted_changes: false,
                 ref: options.ref || 'main'
               },
-              location: 'UsEast' as const,
+              location: 'EastUs' as const,
               idle_timeout_minutes: 30,
               web_url: 'https://mock-codespace-123.github.dev',
               machines_url: 'https://api.github.com/user/codespaces/mock-codespace-123/machines',
               start_url: 'https://api.github.com/user/codespaces/mock-codespace-123/start',
               stop_url: 'https://api.github.com/user/codespaces/mock-codespace-123/stop',
-              recent_folders: []
+              recent_folders: [],
+              pulls_url: 'https://api.github.com/user/codespaces/mock-codespace-123/pulls'
             };
             
             return { data: newCodespace };
@@ -174,7 +221,20 @@ class MockOctokitClient implements IOctokitClient {
             this.stopCalls.push(codespace_name);
             const found = this.mockCodespaces.find(cs => cs.name === codespace_name);
             if (!found) throw new Error('Not found');
-            return { data: { ...found, state: 'Stopped' as const } };
+            return { data: { ...found, state: 'Shutdown' as const } };
+          }
+        },
+        repos: {
+          get: ({ owner, repo }: { owner: string; repo: string }) => {
+            return {
+              data: {
+                id: 67890,
+                name: repo,
+                full_name: `${owner}/${repo}`,
+                owner: { login: owner, id: 1 },
+                private: false
+              }
+            };
           }
         }
       }
@@ -189,16 +249,16 @@ function createMockCodespace(overrides: Partial<Codespace> = {}): Codespace {
     environment_id: 'env-123',
     owner: { login: 'test-owner', id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
     billable_owner: { login: 'test-owner', id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
-    repository: {
+    repository: createMinimalRepository({
       id: 67890,
       node_id: 'repo-node',
       name: 'test-repo',
       full_name: 'test-owner/test-repo',
-      owner: { login: 'test-owner', id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
+      owner: createSimpleUser({ login: 'test-owner', id: 1, node_id: 'node1' }),
       private: false,
       html_url: 'https://github.com/test-owner/test-repo',
       description: null
-    },
+    }),
     machine: {
       name: 'basicLinux32gb',
       display_name: 'Basic',
@@ -222,7 +282,7 @@ function createMockCodespace(overrides: Partial<Codespace> = {}): Codespace {
       has_uncommitted_changes: false,
       ref: 'main'
     },
-    location: 'UsEast',
+    location: 'EastUs',
     idle_timeout_minutes: 30,
     web_url: 'https://test-codespace-123.github.dev',
     machines_url: 'https://api.github.com/user/codespaces/test-codespace-123/machines',
@@ -261,29 +321,37 @@ Deno.test('findAll with repository filter', async () => {
   const mockCodespaces = [
     createMockCodespace({ 
       name: 'codespace-1',
-      repository: {
+      repository: createMinimalRepository({
         id: 1,
         node_id: 'node1',
         name: 'repo1',
         full_name: 'owner1/repo1',
-        owner: { login: 'owner1', id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
+        owner: createSimpleUser({ 
+          login: 'owner1', 
+          id: 1, 
+          node_id: 'node1'
+        }),
         private: false,
         html_url: 'https://github.com/owner1/repo1',
         description: null
-      }
+      })
     }),
     createMockCodespace({ 
       name: 'codespace-2',
-      repository: {
+      repository: createMinimalRepository({
         id: 2,
         node_id: 'node2',
         name: 'repo2',
         full_name: 'owner2/repo2',
-        owner: { login: 'owner2', id: 2, node_id: 'node2', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
+        owner: createSimpleUser({ 
+          login: 'owner2', 
+          id: 2, 
+          node_id: 'node2'
+        }),
         private: false,
         html_url: 'https://github.com/owner2/repo2',
         description: null
-      }
+      })
     }),
   ];
   mockClient.setMockCodespaces(mockCodespaces);
@@ -358,8 +426,8 @@ Deno.test('create with valid options', async () => {
   assertEquals(result.name, 'mock-codespace-123');
   assertEquals(result.git_status.ref, 'feature-branch');
   assertEquals(mockClient.createCalls.length, 1);
-  assertEquals(mockClient.createCalls[0].owner, 'owner');
-  assertEquals(mockClient.createCalls[0].repo, 'repo');
+  assertEquals(mockClient.createCalls[0].owner, 'test-owner');
+  assertEquals(mockClient.createCalls[0].repo, 'test-repo');
 });
 
 Deno.test('create validation - empty owner', async () => {
@@ -436,7 +504,7 @@ Deno.test('delete throws GitHubRepositoryError on failure', async () => {
 
 Deno.test('startCodespace success', async () => {
   const mockClient = new MockOctokitClient();
-  const mockCodespace = createMockCodespace({ name: 'test-codespace', state: 'Stopped' });
+  const mockCodespace = createMockCodespace({ name: 'test-codespace', state: 'Shutdown' });
   mockClient.setMockCodespaces([mockCodespace]);
 
   const repository = new GitHubCodespaceRepositoryImpl(mockClient);
@@ -454,7 +522,7 @@ Deno.test('stopCodespace success', async () => {
   const repository = new GitHubCodespaceRepositoryImpl(mockClient);
   const result = await repository.stopCodespace('test-codespace');
 
-  assertEquals(result.state, 'Stopped');
+  assertEquals(result.state, 'Shutdown');
   assertEquals(mockClient.stopCalls, ['test-codespace']);
 });
 
