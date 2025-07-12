@@ -56,6 +56,14 @@ export class AgentService {
     if (availableCodespace) {
       // Reuse existing codespace
       codespace = availableCodespace;
+      
+      // If the codespace is stopped, start it
+      if (codespace.state === 'Shutdown') {
+        console.log(`Starting stopped codespace: ${codespace.display_name || codespace.name}`);
+        codespace = await this.githubCodespaceService.startCodespace(codespace.name);
+      } else {
+        console.log(`Reusing available codespace: ${codespace.display_name || codespace.name}`);
+      }
     } else {
       // Create new codespace with claudinator naming
       codespace = await this.githubCodespaceService.createCodespace(repository, branch);
@@ -144,6 +152,8 @@ export class AgentService {
 
   /**
    * Finds an available claudinator codespace that can be reused
+   * Includes both running (Available) and stopped (Shutdown) codespaces
+   * Prioritizes running codespaces and branch matches for optimal performance
    * @param repository The repository to filter by
    * @param branch The branch to match (optional)
    * @returns A codespace that can be reused, or null if none available
@@ -167,24 +177,41 @@ export class AgentService {
       );
 
       // Find claudinator codespaces not associated with any active agent
+      // Include both Available and Shutdown (stopped) codespaces for reuse
       const availableCodespaces = claudinatorCodespaces.filter(codespace => 
         !activeCodespaceIds.has(codespace.name) &&
-        codespace.state === 'Available' // Only reuse codespaces that are ready
+        (codespace.state === 'Available' || codespace.state === 'Shutdown')
       );
+
+      // Prioritize Available codespaces over Shutdown ones (faster to use)
+      const runningCodespaces = availableCodespaces.filter(cs => cs.state === 'Available');
+      const stoppedCodespaces = availableCodespaces.filter(cs => cs.state === 'Shutdown');
 
       // If branch is specified, prefer codespaces on the same branch
       if (branch && availableCodespaces.length > 0) {
-        const branchMatchingCodespaces = availableCodespaces.filter(codespace => 
+        // First try running codespaces on the correct branch
+        const runningBranchMatches = runningCodespaces.filter(codespace => 
           codespace.git_status?.ref === branch
         );
+        if (runningBranchMatches.length > 0) {
+          return runningBranchMatches[0];
+        }
         
-        if (branchMatchingCodespaces.length > 0) {
-          return branchMatchingCodespaces[0];
+        // Then try stopped codespaces on the correct branch
+        const stoppedBranchMatches = stoppedCodespaces.filter(codespace => 
+          codespace.git_status?.ref === branch
+        );
+        if (stoppedBranchMatches.length > 0) {
+          return stoppedBranchMatches[0];
         }
       }
 
-      // Return the first available codespace, or null if none found
-      return availableCodespaces.length > 0 ? availableCodespaces[0] : null;
+      // Fallback: prefer running codespaces, then stopped ones
+      if (runningCodespaces.length > 0) {
+        return runningCodespaces[0];
+      }
+      
+      return stoppedCodespaces.length > 0 ? stoppedCodespaces[0] : null;
     } catch (error) {
       console.warn('Failed to find available codespace:', error);
       return null; // Fallback to creating a new codespace
