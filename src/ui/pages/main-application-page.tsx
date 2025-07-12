@@ -11,6 +11,7 @@ import { ErrorModal } from "../components/error-modal.tsx";
 import { AgentService } from "../../agent/service/agent-service.ts";
 import { FocusArea, UIStateService } from "../service/ui-state-service.ts";
 import { AgentStatus } from "../../agent/models/agent-model.ts";
+import { useAgentSelection } from "../hooks/use-agent-selection.ts";
 
 interface MainApplicationPageProps {
   agentService: AgentService;
@@ -24,9 +25,6 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
   const { stdout } = useStdout();
   const tileContainerRef = useRef<TileContainerRef>(null);
   const [agents, setAgents] = useState(() => agentService.listAgents());
-  const [selectedAgents, setSelectedAgents] = useState(() =>
-    agentService.getSelectedAgents()
-  );
   const [focusArea, setFocusArea] = useState(() =>
     uiStateService.getFocusArea()
   );
@@ -43,9 +41,15 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
     uiStateService.getErrorModalMessage()
   );
 
+  // Use the agent selection hook
+  const {
+    toggleAgentSelection,
+    getSelectedAgents,
+    getSelectedAgentCount,
+  } = useAgentSelection();
+
   const refreshAgents = () => {
     setAgents(agentService.listAgents());
-    setSelectedAgents(agentService.getSelectedAgents());
   };
 
   const handleSelectionChange = (index: number) => {
@@ -54,8 +58,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
   };
 
   const handleAgentSelect = (agentId: string) => {
-    agentService.toggleAgentSelection(agentId);
-    refreshAgents();
+    toggleAgentSelection(agentId);
   };
 
   const handleNewAgent = async () => {
@@ -121,12 +124,12 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
     }
 
     if (key.tab) {
-      uiStateService.cycleFocus(selectedAgents.length);
+      uiStateService.cycleFocus(getSelectedAgentCount());
       setFocusArea(uiStateService.getFocusArea());
       return;
     }
 
-    if (focusArea === FocusArea.Tile && selectedAgents.length > 1) {
+    if (focusArea === FocusArea.Tile && getSelectedAgentCount() > 1) {
       if (key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) {
         const direction = key.upArrow
           ? "up"
@@ -142,6 +145,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
   });
 
   // Create tile children for selected agents
+  const selectedAgents = getSelectedAgents(agents);
   const tileChildren = selectedAgents.map((agent, index) => (
     <AgentTile
       key={agent.id}

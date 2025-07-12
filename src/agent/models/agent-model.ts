@@ -15,7 +15,11 @@ export interface Agent {
   codespaceDisplayName?: string;
 }
 
-export function createAgent(name: string, codespaceId?: string, codespaceDisplayName?: string): Agent {
+export function createAgent(
+  name: string,
+  codespaceId?: string,
+  codespaceDisplayName?: string,
+): Agent {
   return {
     id: crypto.randomUUID(),
     name,
@@ -51,6 +55,7 @@ export function isValidAgent(agent: unknown): agent is Agent {
     Object.values(AgentStatus).includes(obj.status as AgentStatus) &&
     obj.createdAt instanceof Date &&
     (obj.codespaceId === undefined || typeof obj.codespaceId === "string") &&
-    (obj.codespaceDisplayName === undefined || typeof obj.codespaceDisplayName === "string")
+    (obj.codespaceDisplayName === undefined ||
+      typeof obj.codespaceDisplayName === "string")
   );
 }

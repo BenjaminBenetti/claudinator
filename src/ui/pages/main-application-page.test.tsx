@@ -82,15 +82,12 @@ Deno.test("Unit - MainApplicationPage should render with agents", async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 });
 
-Deno.test("Unit - MainApplicationPage should render with selected agents", async () => {
+Deno.test("Unit - MainApplicationPage should render multiple agents", async () => {
   const { agentService, uiStateService } = createMockServices();
 
-  // Add and select some agents
-  const agent1 = agentService.createAgent("Test Agent 1");
-  const agent2 = agentService.createAgent("Test Agent 2");
-
-  agentService.selectAgent(agent1.id);
-  agentService.selectAgent(agent2.id);
+  // Add some agents
+  agentService.createAgent("Test Agent 1");
+  agentService.createAgent("Test Agent 2");
 
   const component = TestRenderer.create(
     <MainApplicationPage
@@ -102,12 +99,10 @@ Deno.test("Unit - MainApplicationPage should render with selected agents", async
 
   assertEquals(tree !== null, true);
 
-  // Check that selected agents are rendered in the tile area
+  // Check that agents are rendered in the sidebar
   const jsonString = JSON.stringify(tree);
   assertEquals(jsonString.includes("Test Agent 1"), true);
   assertEquals(jsonString.includes("Test Agent 2"), true);
-  // Check that tile area indicators are present
-  assertEquals(jsonString.includes("▶"), true); // Play symbol for selected agents
 
   component.unmount();
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -141,7 +136,6 @@ Deno.test("Unit - MainApplicationPage should handle services initialization", as
 
   // Verify initial state
   assertEquals(agentService.getAgentCount(), 0);
-  assertEquals(agentService.getSelectedAgentCount(), 0);
   assertEquals(uiStateService.getSelectedListIndex(), 0);
   assertEquals(uiStateService.getFocusedTileIndex(), 0);
 
@@ -194,10 +188,6 @@ Deno.test("Unit - MainApplicationPage should handle agent operations", async () 
 
   assertEquals(agentService.getAgentCount(), 2);
 
-  // Test selecting agents
-  agentService.selectAgent(agent1.id);
-  assertEquals(agentService.getSelectedAgentCount(), 1);
-
   const component = TestRenderer.create(
     <MainApplicationPage
       agentService={agentService}
@@ -212,8 +202,6 @@ Deno.test("Unit - MainApplicationPage should handle agent operations", async () 
   const jsonString = JSON.stringify(tree);
   assertEquals(jsonString.includes("Agent 1"), true);
   assertEquals(jsonString.includes("Agent 2"), true);
-  // Check that the selected agent shows up in the tile area
-  assertEquals(jsonString.includes("▶"), true); // Play symbol for selected agent
 
   component.unmount();
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -252,7 +240,6 @@ Deno.test("Unit - MainApplicationPage should handle state synchronization", asyn
 
   // Create agents and modify state
   const agent = agentService.createAgent("Test Agent");
-  agentService.selectAgent(agent.id);
   uiStateService.setSelectedListIndex(0);
   uiStateService.setFocusedTileIndex(0);
 
@@ -269,8 +256,6 @@ Deno.test("Unit - MainApplicationPage should handle state synchronization", asyn
   // Check that state synchronization is reflected in the UI
   const jsonString = JSON.stringify(tree);
   assertEquals(jsonString.includes("Test Agent"), true);
-  // Check that the agent is shown both in sidebar and tile area
-  assertEquals(jsonString.includes("▶"), true); // Play symbol for selected agent
 
   component.unmount();
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -326,11 +311,9 @@ Deno.test("Integration - MainApplicationPage should render help bar with sidebar
 Deno.test("Integration - MainApplicationPage should render help bar with tile focus", async () => {
   const { agentService, uiStateService } = createMockServices();
 
-  // Create and select agents to enable tile focus
+  // Create agents to enable tile focus
   const agent1 = agentService.createAgent("Test Agent 1");
   const agent2 = agentService.createAgent("Test Agent 2");
-  agentService.selectAgent(agent1.id);
-  agentService.selectAgent(agent2.id);
 
   // Set tile focus
   uiStateService.setFocusArea(FocusArea.Tile);
@@ -400,7 +383,6 @@ Deno.test("Integration - MainApplicationPage should not interfere with existing 
   // Create agents to test existing functionality
   const agent1 = agentService.createAgent("Test Agent 1");
   const agent2 = agentService.createAgent("Test Agent 2");
-  agentService.selectAgent(agent1.id);
 
   const component = TestRenderer.create(
     <MainApplicationPage
@@ -417,7 +399,6 @@ Deno.test("Integration - MainApplicationPage should not interfere with existing 
   assertEquals(jsonString.includes("Test Agent 1"), true);
   assertEquals(jsonString.includes("Test Agent 2"), true);
   assertEquals(jsonString.includes("Agents"), true); // Sidebar title
-  assertEquals(jsonString.includes("▶"), true); // Play symbol for selected agent
 
   // Check that help bar is also present
   assertEquals(jsonString.includes("d - Details"), true);
@@ -430,9 +411,8 @@ Deno.test("Integration - MainApplicationPage should not interfere with existing 
 Deno.test("Integration - MainApplicationPage should handle focus area changes with help bar", async () => {
   const { agentService, uiStateService } = createMockServices();
 
-  // Create and select agents to enable tile focus
+  // Create agents to enable tile focus
   const agent = agentService.createAgent("Test Agent");
-  agentService.selectAgent(agent.id);
 
   // Test sidebar focus
   uiStateService.setFocusArea(FocusArea.Sidebar);

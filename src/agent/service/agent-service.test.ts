@@ -53,138 +53,16 @@ Deno.test("Unit - AgentService should update agent", () => {
   assertEquals(updatedAgent?.status, AgentStatus.Running);
 });
 
-Deno.test("Unit - AgentService should delete agent and remove from selection", () => {
+Deno.test("Unit - AgentService should delete agent", () => {
   const repo = createAgentRepository();
   const service = createAgentService(repo);
 
   const agent = service.createAgent("Test Agent");
-  service.selectAgent(agent.id);
-
-  assertEquals(service.isAgentSelected(agent.id), true);
 
   const deleted = service.deleteAgent(agent.id);
 
   assertEquals(deleted, true);
   assertEquals(service.getAgentCount(), 0);
-  assertEquals(service.isAgentSelected(agent.id), false);
-});
-
-Deno.test("Unit - AgentService should select agent", () => {
-  const repo = createAgentRepository();
-  const service = createAgentService(repo);
-
-  const agent = service.createAgent("Test Agent");
-  const selected = service.selectAgent(agent.id);
-
-  assertEquals(selected, true);
-  assertEquals(service.isAgentSelected(agent.id), true);
-  assertEquals(service.getSelectedAgentCount(), 1);
-});
-
-Deno.test("Unit - AgentService should not select non-existent agent", () => {
-  const repo = createAgentRepository();
-  const service = createAgentService(repo);
-
-  const selected = service.selectAgent("non-existent-id");
-
-  assertEquals(selected, false);
-  assertEquals(service.getSelectedAgentCount(), 0);
-});
-
-Deno.test("Unit - AgentService should deselect agent", () => {
-  const repo = createAgentRepository();
-  const service = createAgentService(repo);
-
-  const agent = service.createAgent("Test Agent");
-  service.selectAgent(agent.id);
-
-  assertEquals(service.isAgentSelected(agent.id), true);
-
-  service.deselectAgent(agent.id);
-
-  assertEquals(service.isAgentSelected(agent.id), false);
-  assertEquals(service.getSelectedAgentCount(), 0);
-});
-
-Deno.test("Unit - AgentService should toggle agent selection", () => {
-  const repo = createAgentRepository();
-  const service = createAgentService(repo);
-
-  const agent = service.createAgent("Test Agent");
-
-  // Toggle to select
-  const selected = service.toggleAgentSelection(agent.id);
-  assertEquals(selected, true);
-  assertEquals(service.isAgentSelected(agent.id), true);
-
-  // Toggle to deselect
-  const deselected = service.toggleAgentSelection(agent.id);
-  assertEquals(deselected, false);
-  assertEquals(service.isAgentSelected(agent.id), false);
-});
-
-Deno.test("Unit - AgentService should not toggle non-existent agent", () => {
-  const repo = createAgentRepository();
-  const service = createAgentService(repo);
-
-  const result = service.toggleAgentSelection("non-existent-id");
-
-  assertEquals(result, false);
-  assertEquals(service.getSelectedAgentCount(), 0);
-});
-
-Deno.test("Unit - AgentService should get selected agents", () => {
-  const repo = createAgentRepository();
-  const service = createAgentService(repo);
-
-  const agent1 = service.createAgent("Agent 1");
-  const agent2 = service.createAgent("Agent 2");
-  const agent3 = service.createAgent("Agent 3");
-
-  service.selectAgent(agent1.id);
-  service.selectAgent(agent3.id);
-
-  const selectedAgents = service.getSelectedAgents();
-
-  assertEquals(selectedAgents.length, 2);
-  assertEquals(selectedAgents.some((a) => a.id === agent1.id), true);
-  assertEquals(selectedAgents.some((a) => a.id === agent3.id), true);
-  assertEquals(selectedAgents.some((a) => a.id === agent2.id), false);
-});
-
-Deno.test("Unit - AgentService should get selected agent IDs", () => {
-  const repo = createAgentRepository();
-  const service = createAgentService(repo);
-
-  const agent1 = service.createAgent("Agent 1");
-  const agent2 = service.createAgent("Agent 2");
-
-  service.selectAgent(agent1.id);
-  service.selectAgent(agent2.id);
-
-  const selectedIds = service.getSelectedAgentIds();
-
-  assertEquals(selectedIds.length, 2);
-  assertEquals(selectedIds.includes(agent1.id), true);
-  assertEquals(selectedIds.includes(agent2.id), true);
-});
-
-Deno.test("Unit - AgentService should clear selected agents", () => {
-  const repo = createAgentRepository();
-  const service = createAgentService(repo);
-
-  const agent1 = service.createAgent("Agent 1");
-  const agent2 = service.createAgent("Agent 2");
-
-  service.selectAgent(agent1.id);
-  service.selectAgent(agent2.id);
-
-  assertEquals(service.getSelectedAgentCount(), 2);
-
-  service.clearSelectedAgents();
-
-  assertEquals(service.getSelectedAgentCount(), 0);
-  assertEquals(service.getSelectedAgents().length, 0);
 });
 
 Deno.test("Unit - AgentService should update agent status", () => {
@@ -196,25 +74,6 @@ Deno.test("Unit - AgentService should update agent status", () => {
 
   assertEquals(updatedAgent?.status, AgentStatus.Running);
   assertEquals(updatedAgent?.id, agent.id);
-});
-
-Deno.test("Unit - AgentService should handle deleted agents in selection", () => {
-  const repo = createAgentRepository();
-  const service = createAgentService(repo);
-
-  const agent1 = service.createAgent("Agent 1");
-  const agent2 = service.createAgent("Agent 2");
-
-  service.selectAgent(agent1.id);
-  service.selectAgent(agent2.id);
-
-  // Delete agent1
-  service.deleteAgent(agent1.id);
-
-  const selectedAgents = service.getSelectedAgents();
-
-  assertEquals(selectedAgents.length, 1);
-  assertEquals(selectedAgents[0].id, agent2.id);
 });
 
 Deno.test("Unit - AgentService should create agent with codespace ID", () => {
@@ -235,7 +94,10 @@ Deno.test("Unit - AgentService should link agent to codespace", async () => {
   const agent = service.createAgent("Test Agent");
   const codespaceId = "test-codespace-123";
 
-  const updatedAgent = await service.linkAgentToCodespace(agent.id, codespaceId);
+  const updatedAgent = await service.linkAgentToCodespace(
+    agent.id,
+    codespaceId,
+  );
 
   assertEquals(updatedAgent?.codespaceId, codespaceId);
   assertEquals(updatedAgent?.id, agent.id);

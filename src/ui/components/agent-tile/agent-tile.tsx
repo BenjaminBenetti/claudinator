@@ -7,7 +7,9 @@ export const AgentTile: React.FC<AgentTileProps> = ({
   agent,
   isFocused = false,
 }: AgentTileProps) => {
-  const [displayMode, setDisplayMode] = useState<DisplayMode>(DisplayMode.Details);
+  const [displayMode, setDisplayMode] = useState<DisplayMode>(
+    DisplayMode.Details,
+  );
 
   const renderMode = () => {
     switch (displayMode) {
