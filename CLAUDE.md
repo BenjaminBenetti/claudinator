@@ -78,6 +78,32 @@ Example:
 3. **Component Structure**: React functional components with hooks for UI
 4. **Testing Co-location**: Test files (`.test.ts`) next to source files
 
+## Code Organization Standards
+
+### Class Member Organization
+When writing classes, **ALWAYS** organize members in the following order:
+
+1. **Properties** (grouped by visibility)
+   - Public properties
+   - Protected properties
+   - Private properties
+   
+2. **Constructor**
+
+3. **Public Methods** (grouped logically by functionality)
+
+4. **Protected Methods** (grouped logically by functionality)
+
+5. **Private Methods** (grouped logically by functionality)
+
+
+### Documentation Requirements
+**ALL methods MUST have JSDoc documentation comments** that include:
+- A clear description of what the method does
+- `@param` tags for all parameters with descriptions
+- `@returns` tag describing the return value (if not void)
+- `@throws` tag for any exceptions that might be thrown (if applicable)
+
 ## Task Engine - Procedure Rules
 
 YOU MUST FIRST select a procedure and READ the procedure file before proceeding. This is the MOST important thing.
