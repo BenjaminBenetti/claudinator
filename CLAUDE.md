@@ -1,9 +1,7 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-# Concurrency    
-I have Claude max. Use AS MANY SUB AGENTS AS POSSIBLE, at all times. To reduce task completion time.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. YOU MUST, also read
+/session.md to get information on recent edits. /session.md is your SHORT TERM memory.
 
 # Primary Role
 
