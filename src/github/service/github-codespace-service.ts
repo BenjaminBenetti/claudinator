@@ -1,14 +1,16 @@
 import type { Codespace, CreateCodespaceOptions } from '../models/codespace-model.ts';
 import type { GitHubCodespaceRepository } from '../repo/github-codespace-repo.ts';
-import type { IGhCliWrapper } from '../utils/gh-cli-wrapper.ts';
+import type { IGitHubAuthService } from './github-auth-service.ts';
 
 export interface GitHubCodespaceService {
+  ensureAuthenticated(): Promise<void>;
   listCodespaces(repository?: string): Promise<Codespace[]>;
   createCodespace(repository: string, branch?: string): Promise<Codespace>;
   deleteCodespace(name: string): Promise<void>;
   getCodespaceStatus(name: string): Promise<Codespace>;
   cleanupOldCodespaces(repository?: string, olderThanDays?: number): Promise<number>;
-  ensureAuthenticated(): Promise<void>;
+  startCodespace(name: string): Promise<Codespace>;
+  stopCodespace(name: string): Promise<Codespace>;
 }
 
 export class GitHubCodespaceServiceError extends Error {
@@ -25,8 +27,13 @@ export class GitHubCodespaceServiceError extends Error {
 export class GitHubCodespaceServiceImpl implements GitHubCodespaceService {
   constructor(
     private readonly repository: GitHubCodespaceRepository,
-    private readonly ghWrapper: IGhCliWrapper
+    private readonly authService: IGitHubAuthService
   ) {}
+
+
+  public async ensureAuthenticated(): Promise<void> {
+    await this.authService.ensureAuthenticated();
+  }
 
   async listCodespaces(repository?: string): Promise<Codespace[]> {
     try {
@@ -55,13 +62,13 @@ export class GitHubCodespaceServiceImpl implements GitHubCodespaceService {
         this.validateBranchName(branch);
       }
 
+      const [owner, repo] = repository.split('/');
       const options: CreateCodespaceOptions = {
-        repository,
-        branch,
-        machineType: 'basicLinux32gb', // Default machine type as per plan
+        ref: branch || 'main',
+        machine: 'basicLinux32gb', // Default machine type as per plan
       };
 
-      const codespace = await this.repository.create(options);
+      const codespace = await this.repository.create(owner, repo, options);
       
       // Wait for codespace to be in a stable state before returning
       await this.waitForCodespaceReady(codespace.name);
@@ -87,7 +94,7 @@ export class GitHubCodespaceServiceImpl implements GitHubCodespaceService {
         throw new Error(`Codespace '${name}' not found`);
       }
 
-      await this.repository.delete(name, true); // Force delete for reliability
+      await this.repository.delete(name);
     } catch (error) {
       throw new GitHubCodespaceServiceError(
         `Failed to delete codespace: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -119,7 +126,7 @@ export class GitHubCodespaceServiceImpl implements GitHubCodespaceService {
 
   async cleanupOldCodespaces(repository?: string, olderThanDays = 7): Promise<number> {
     try {
-      await this.ensureAuthenticated();
+      await this.authService.ensureAuthenticated();
       
       if (repository) {
         this.validateRepositoryFormat(repository);
@@ -140,7 +147,7 @@ export class GitHubCodespaceServiceImpl implements GitHubCodespaceService {
       let deletedCount = 0;
       for (const codespace of codesToDelete) {
         try {
-          await this.repository.delete(codespace.name, true);
+          await this.repository.delete(codespace.name);
           deletedCount++;
         } catch (error) {
           console.warn(`Failed to delete codespace ${codespace.name}:`, error);
@@ -157,16 +164,31 @@ export class GitHubCodespaceServiceImpl implements GitHubCodespaceService {
     }
   }
 
-  async ensureAuthenticated(): Promise<void> {
+  async startCodespace(name: string): Promise<Codespace> {
     try {
-      const isAuthenticated = await this.ghWrapper.checkAuthentication();
-      if (!isAuthenticated) {
-        throw new Error('GitHub CLI is not authenticated. Please run `gh auth login` first.');
-      }
+      await this.authService.ensureAuthenticated();
+      this.validateCodespaceName(name);
+
+      return await this.repository.startCodespace(name);
     } catch (error) {
       throw new GitHubCodespaceServiceError(
-        'Authentication check failed',
-        'ensureAuthenticated',
+        `Failed to start codespace: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'startCodespace',
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+
+  async stopCodespace(name: string): Promise<Codespace> {
+    try {
+      await this.authService.ensureAuthenticated();
+      this.validateCodespaceName(name);
+
+      return await this.repository.stopCodespace(name);
+    } catch (error) {
+      throw new GitHubCodespaceServiceError(
+        `Failed to stop codespace: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'stopCodespace',
         error instanceof Error ? error : undefined
       );
     }
@@ -219,7 +241,7 @@ export class GitHubCodespaceServiceImpl implements GitHubCodespaceService {
     cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
 
     return codespaces.filter(codespace => {
-      const lastUsed = codespace.lastUsedAt || codespace.createdAt;
+      const lastUsed = new Date(codespace.last_used_at || codespace.created_at);
       return lastUsed < cutoffDate;
     });
   }
@@ -228,7 +250,7 @@ export class GitHubCodespaceServiceImpl implements GitHubCodespaceService {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const status = await this.repository.findByName(name);
-        if (status && ['Available', 'Error'].includes(status.state)) {
+        if (status && ['Available', 'Unknown'].includes(status.state)) {
           return; // Codespace is in a stable state
         }
         
@@ -248,7 +270,7 @@ export class GitHubCodespaceServiceImpl implements GitHubCodespaceService {
 
 export function createGitHubCodespaceService(
   repository: GitHubCodespaceRepository,
-  ghWrapper: IGhCliWrapper
+  authService: IGitHubAuthService
 ): GitHubCodespaceService {
-  return new GitHubCodespaceServiceImpl(repository, ghWrapper);
+  return new GitHubCodespaceServiceImpl(repository, authService);
 }

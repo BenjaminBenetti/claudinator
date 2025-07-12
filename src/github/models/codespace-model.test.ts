@@ -1,50 +1,35 @@
 import { assertEquals } from '@std/assert';
-import type { Codespace, CodespaceState, CreateCodespaceOptions } from './codespace-model.ts';
+import type { Codespace, CreateCodespaceOptions, CodespaceMachine } from './codespace-model.ts';
 
-Deno.test('Codespace interface validation', () => {
-  const mockCodespace: Codespace = {
+Deno.test('Codespace type is properly imported from Octokit', () => {
+  // Test that we can create a partial codespace object with Octokit types
+  const partialCodespace: Partial<Codespace> = {
     name: 'test-codespace-123',
-    displayName: 'Test Codespace',
-    repository: 'test-repo',
-    owner: 'test-owner',
-    branch: 'main',
-    state: 'Available' as CodespaceState,
-    machineType: '2core',
-    createdAt: new Date('2024-01-01T00:00:00Z'),
-    lastUsedAt: new Date('2024-01-02T00:00:00Z'),
-    url: 'https://github.dev/test-owner/test-repo',
-    gitStatus: 'clean'
+    state: 'Available'
   };
 
-  assertEquals(mockCodespace.name, 'test-codespace-123');
-  assertEquals(mockCodespace.state, 'Available');
-  assertEquals(mockCodespace.owner, 'test-owner');
-  assertEquals(mockCodespace.repository, 'test-repo');
+  assertEquals(partialCodespace.name, 'test-codespace-123');
+  assertEquals(partialCodespace.state, 'Available');
 });
 
-Deno.test('CodespaceState type validation', () => {
-  const validStates: CodespaceState[] = ['Available', 'Shutdown', 'Starting', 'Rebuilding', 'Error'];
-  
-  validStates.forEach(state => {
-    const codespace: Partial<Codespace> = { state };
-    assertEquals(codespace.state, state);
-  });
+Deno.test('CreateCodespaceOptions type is properly imported from Octokit', () => {
+  // Test that we can use Octokit's CreateCodespaceOptions
+  const options: CreateCodespaceOptions = {
+    ref: 'main',
+    machine: 'basicLinux32gb'
+  };
+
+  assertEquals(options.ref, 'main');
+  assertEquals(options.machine, 'basicLinux32gb');
 });
 
-Deno.test('CreateCodespaceOptions interface validation', () => {
-  const minimalOptions: CreateCodespaceOptions = {
-    repository: 'owner/repo'
+Deno.test('CodespaceMachine type is properly imported from Octokit', () => {
+  // Test that we can create a partial machine object
+  const partialMachine: Partial<CodespaceMachine> = {
+    name: 'basicLinux32gb',
+    display_name: 'Basic (2 cores, 8 GB RAM, 32 GB storage)'
   };
 
-  const fullOptions: CreateCodespaceOptions = {
-    repository: 'owner/repo',
-    branch: 'feature-branch',
-    machineType: 'basicLinux32gb',
-    retentionPeriod: 30
-  };
-
-  assertEquals(minimalOptions.repository, 'owner/repo');
-  assertEquals(fullOptions.branch, 'feature-branch');
-  assertEquals(fullOptions.machineType, 'basicLinux32gb');
-  assertEquals(fullOptions.retentionPeriod, 30);
+  assertEquals(partialMachine.name, 'basicLinux32gb');
+  assertEquals(partialMachine.display_name, 'Basic (2 cores, 8 GB RAM, 32 GB storage)');
 });

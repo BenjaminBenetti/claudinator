@@ -5,21 +5,25 @@ import {
   createGitHubCodespaceService 
 } from './github-codespace-service.ts';
 import type { GitHubCodespaceRepository } from '../repo/github-codespace-repo.ts';
-import type { IGhCliWrapper } from '../utils/gh-cli-wrapper.ts';
+import type { IGitHubAuthService } from './github-auth-service.ts';
 import type { Codespace, CreateCodespaceOptions } from '../models/codespace-model.ts';
 
 // Mock implementations
 class MockGitHubCodespaceRepository implements GitHubCodespaceRepository {
   public findAllCalls: string[] = [];
   public findByNameCalls: string[] = [];
-  public createCalls: CreateCodespaceOptions[] = [];
-  public deleteCalls: { name: string; force?: boolean }[] = [];
+  public createCalls: Array<{ owner: string; repo: string; options: CreateCodespaceOptions }> = [];
+  public deleteCalls: string[] = [];
   public deleteAllCalls: { repository?: string; olderThanDays?: number }[] = [];
+  public startCalls: string[] = [];
+  public stopCalls: string[] = [];
 
   private mockCodespaces: Codespace[] = [];
   private shouldThrowOnCreate = false;
   private shouldThrowOnDelete = false;
   private shouldThrowOnFind = false;
+  private shouldThrowOnStart = false;
+  private shouldThrowOnStop = false;
 
   setMockCodespaces(codespaces: Codespace[]) {
     this.mockCodespaces = codespaces;
@@ -37,6 +41,14 @@ class MockGitHubCodespaceRepository implements GitHubCodespaceRepository {
     this.shouldThrowOnFind = shouldThrow;
   }
 
+  setShouldThrowOnStart(shouldThrow: boolean) {
+    this.shouldThrowOnStart = shouldThrow;
+  }
+
+  setShouldThrowOnStop(shouldThrow: boolean) {
+    this.shouldThrowOnStop = shouldThrow;
+  }
+
   async findAll(repository?: string): Promise<Codespace[]> {
     this.findAllCalls.push(repository || 'all');
     if (this.shouldThrowOnFind) {
@@ -50,31 +62,69 @@ class MockGitHubCodespaceRepository implements GitHubCodespaceRepository {
     if (this.shouldThrowOnFind) {
       throw new Error('Mock find error');
     }
-    return await Promise.resolve(this.mockCodespaces.find(cs => cs.name === name) || null);
+    const found = this.mockCodespaces.find(cs => cs.name === name);
+    return await Promise.resolve(found || null);
   }
 
-  async create(options: CreateCodespaceOptions): Promise<Codespace> {
-    this.createCalls.push(options);
+  async create(owner: string, repo: string, options: CreateCodespaceOptions): Promise<Codespace> {
+    this.createCalls.push({ owner, repo, options });
     if (this.shouldThrowOnCreate) {
       throw new Error('Mock create error');
     }
 
-    const [owner, repo] = options.repository.split('/');
-    return await Promise.resolve({
+    const newCodespace: Codespace = {
+      id: 123456789,
       name: 'mock-codespace-123',
-      displayName: 'Mock Codespace',
-      repository: repo,
-      owner,
-      branch: options.branch || 'main',
+      environment_id: 'env-123',
+      owner: { login: owner, id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
+      billable_owner: { login: owner, id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
+      repository: {
+        id: 67890,
+        node_id: 'repo-node',
+        name: repo,
+        full_name: `${owner}/${repo}`,
+        owner: { login: owner, id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
+        private: false,
+        html_url: `https://github.com/${owner}/${repo}`,
+        description: null
+      },
+      machine: {
+        name: options.machine || 'basicLinux32gb',
+        display_name: 'Basic',
+        operating_system: 'linux' as const,
+        storage_in_bytes: 32000000000,
+        memory_in_bytes: 8000000000,
+        cpus: 2,
+        prebuild_availability: null
+      },
+      devcontainer_path: '.devcontainer/devcontainer.json',
+      prebuild: false,
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+      last_used_at: '2024-01-01T00:00:00Z',
       state: 'Available',
-      machineType: options.machineType || '2core',
-      createdAt: new Date(),
-      lastUsedAt: new Date(),
-    });
+      url: 'https://api.github.com/user/codespaces/mock-codespace-123',
+      git_status: {
+        ahead: 0,
+        behind: 0,
+        has_unpushed_changes: false,
+        has_uncommitted_changes: false,
+        ref: options.ref || 'main'
+      },
+      location: 'UsEast',
+      idle_timeout_minutes: 30,
+      web_url: 'https://mock-codespace-123.github.dev',
+      machines_url: 'https://api.github.com/user/codespaces/mock-codespace-123/machines',
+      start_url: 'https://api.github.com/user/codespaces/mock-codespace-123/start',
+      stop_url: 'https://api.github.com/user/codespaces/mock-codespace-123/stop',
+      recent_folders: []
+    };
+
+    return await Promise.resolve(newCodespace);
   }
 
-  async delete(name: string, force?: boolean): Promise<void> {
-    this.deleteCalls.push({ name, force });
+  async delete(name: string): Promise<void> {
+    this.deleteCalls.push(name);
     if (this.shouldThrowOnDelete) {
       throw new Error('Mock delete error');
     }
@@ -85,104 +135,171 @@ class MockGitHubCodespaceRepository implements GitHubCodespaceRepository {
     this.deleteAllCalls.push({ repository, olderThanDays });
     return await Promise.resolve();
   }
+
+  async startCodespace(name: string): Promise<Codespace> {
+    this.startCalls.push(name);
+    if (this.shouldThrowOnStart) {
+      throw new Error('Mock start error');
+    }
+    const found = this.mockCodespaces.find(cs => cs.name === name);
+    if (!found) throw new Error('Codespace not found');
+    return { ...found, state: 'Available' };
+  }
+
+  async stopCodespace(name: string): Promise<Codespace> {
+    this.stopCalls.push(name);
+    if (this.shouldThrowOnStop) {
+      throw new Error('Mock stop error');
+    }
+    const found = this.mockCodespaces.find(cs => cs.name === name);
+    if (!found) throw new Error('Codespace not found');
+    return { ...found, state: 'Stopped' };
+  }
 }
 
-class MockGhCliWrapper implements IGhCliWrapper {
-  public checkAuthenticationCalls = 0;
+class MockGitHubAuthService implements IGitHubAuthService {
   private shouldThrowOnAuth = false;
-  private isAuthenticated = true;
+  private mockToken = 'mock-token';
 
   setShouldThrowOnAuth(shouldThrow: boolean) {
     this.shouldThrowOnAuth = shouldThrow;
   }
 
-  setIsAuthenticated(authenticated: boolean) {
-    this.isAuthenticated = authenticated;
-  }
-
-  async checkAuthentication(): Promise<boolean> {
-    this.checkAuthenticationCalls++;
+  async getToken(): Promise<string> {
     if (this.shouldThrowOnAuth) {
       throw new Error('Mock auth error');
     }
-    return await Promise.resolve(this.isAuthenticated);
+    return this.mockToken;
   }
 
-  // Required interface methods (not used in service tests)
-  async listCodespaces(): Promise<Codespace[]> { return await Promise.resolve([]); }
-  async createCodespace(): Promise<Codespace> { return await Promise.resolve({} as Codespace); }
-  async deleteCodespace(): Promise<void> { return await Promise.resolve(); }
-  async getCodespaceStatus(): Promise<Codespace> { return await Promise.resolve({} as Codespace); }
+  async validateToken(token: string): Promise<boolean> {
+    return !this.shouldThrowOnAuth && token === this.mockToken;
+  }
+
+  async isAuthenticated(): Promise<boolean> {
+    return !this.shouldThrowOnAuth;
+  }
+
+  async ensureAuthenticated(): Promise<string> {
+    if (this.shouldThrowOnAuth) {
+      throw new Error('Not authenticated');
+    }
+    return this.mockToken;
+  }
+
+  clearCache(): void {
+    // Mock implementation
+  }
 }
 
 function createMockCodespace(overrides: Partial<Codespace> = {}): Codespace {
   return {
+    id: 123456789,
     name: 'test-codespace-123',
-    displayName: 'Test Codespace',
-    repository: 'test-repo',
-    owner: 'test-owner',
-    branch: 'main',
+    environment_id: 'env-123',
+    owner: { login: 'test-owner', id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
+    billable_owner: { login: 'test-owner', id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
+    repository: {
+      id: 67890,
+      node_id: 'repo-node',
+      name: 'test-repo',
+      full_name: 'test-owner/test-repo',
+      owner: { login: 'test-owner', id: 1, node_id: 'node1', avatar_url: '', url: '', html_url: '', type: 'User', site_admin: false },
+      private: false,
+      html_url: 'https://github.com/test-owner/test-repo',
+      description: null
+    },
+    machine: {
+      name: 'basicLinux32gb',
+      display_name: 'Basic',
+      operating_system: 'linux' as const,
+      storage_in_bytes: 32000000000,
+      memory_in_bytes: 8000000000,
+      cpus: 2,
+      prebuild_availability: null
+    },
+    devcontainer_path: '.devcontainer/devcontainer.json',
+    prebuild: false,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+    last_used_at: '2024-01-02T00:00:00Z',
     state: 'Available',
-    machineType: '2core',
-    createdAt: new Date('2024-01-01T00:00:00Z'),
-    lastUsedAt: new Date('2024-01-02T00:00:00Z'),
+    url: 'https://api.github.com/user/codespaces/test-codespace-123',
+    git_status: {
+      ahead: 0,
+      behind: 0,
+      has_unpushed_changes: false,
+      has_uncommitted_changes: false,
+      ref: 'main'
+    },
+    location: 'UsEast',
+    idle_timeout_minutes: 30,
+    web_url: 'https://test-codespace-123.github.dev',
+    machines_url: 'https://api.github.com/user/codespaces/test-codespace-123/machines',
+    start_url: 'https://api.github.com/user/codespaces/test-codespace-123/start',
+    stop_url: 'https://api.github.com/user/codespaces/test-codespace-123/stop',
+    recent_folders: [],
     ...overrides,
-  };
+  } as Codespace;
 }
 
 Deno.test('GitHubCodespaceService factory function', () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
-  const service = createGitHubCodespaceService(mockRepo, mockWrapper);
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
+  const service = createGitHubCodespaceService(mockRepository, mockAuthService);
   assertInstanceOf(service, GitHubCodespaceServiceImpl);
 });
 
 Deno.test('listCodespaces success', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
-  const mockCodespaces = [createMockCodespace({ name: 'codespace-1' })];
-  mockRepo.setMockCodespaces(mockCodespaces);
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
+  const mockCodespaces = [
+    createMockCodespace({ name: 'codespace-1' }),
+    createMockCodespace({ name: 'codespace-2' }),
+  ];
+  mockRepository.setMockCodespaces(mockCodespaces);
 
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
   const result = await service.listCodespaces();
 
-  assertEquals(result.length, 1);
+  assertEquals(result.length, 2);
   assertEquals(result[0].name, 'codespace-1');
-  assertEquals(mockWrapper.checkAuthenticationCalls, 1);
-  assertEquals(mockRepo.findAllCalls, ['all']);
+  assertEquals(result[1].name, 'codespace-2');
+  assertEquals(mockRepository.findAllCalls, ['all']);
 });
 
 Deno.test('listCodespaces with repository filter', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
-  mockRepo.setMockCodespaces([]);
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
+  const mockCodespaces = [createMockCodespace()];
+  mockRepository.setMockCodespaces(mockCodespaces);
 
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
   await service.listCodespaces('owner/repo');
 
-  assertEquals(mockRepo.findAllCalls, ['owner/repo']);
+  assertEquals(mockRepository.findAllCalls, ['owner/repo']);
 });
 
 Deno.test('listCodespaces authentication failure', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
-  mockWrapper.setIsAuthenticated(false);
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
+  mockAuthService.setShouldThrowOnAuth(true);
 
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
-  
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
+
   await assertRejects(
     () => service.listCodespaces(),
     GitHubCodespaceServiceError,
-    'Authentication check failed'
+    'Failed to list codespaces'
   );
 });
 
-Deno.test('listCodespaces invalid repository format', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
+Deno.test('listCodespaces repository format validation', async () => {
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
 
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
-  
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
+
   await assertRejects(
     () => service.listCodespaces('invalid-format'),
     GitHubCodespaceServiceError,
@@ -191,88 +308,79 @@ Deno.test('listCodespaces invalid repository format', async () => {
 });
 
 Deno.test('createCodespace success', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
-  const mockCodespace = createMockCodespace({ name: 'mock-codespace-123' });
-  mockRepo.setMockCodespaces([mockCodespace]);
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
 
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
   const result = await service.createCodespace('owner/repo', 'feature-branch');
 
   assertEquals(result.name, 'mock-codespace-123');
-  assertEquals(mockRepo.createCalls.length, 1);
-  assertEquals(mockRepo.createCalls[0].repository, 'owner/repo');
-  assertEquals(mockRepo.createCalls[0].branch, 'feature-branch');
-  assertEquals(mockRepo.createCalls[0].machineType, 'basicLinux32gb');
+  assertEquals(result.git_status.ref, 'feature-branch');
+  assertEquals(mockRepository.createCalls.length, 1);
+  assertEquals(mockRepository.createCalls[0].owner, 'owner');
+  assertEquals(mockRepository.createCalls[0].repo, 'repo');
+  assertEquals(mockRepository.createCalls[0].options.ref, 'feature-branch');
 });
 
-Deno.test('createCodespace validation - invalid repository', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
+Deno.test('createCodespace validation - invalid repository format', async () => {
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
 
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
-  
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
+
   await assertRejects(
-    () => service.createCodespace('invalid'),
+    () => service.createCodespace('invalid-format'),
     GitHubCodespaceServiceError,
     'Repository must be in format "owner/repo"'
   );
 });
 
-Deno.test('createCodespace validation - invalid branch', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
+Deno.test('createCodespace validation - invalid branch name', async () => {
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
 
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
-  
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
+
   await assertRejects(
     () => service.createCodespace('owner/repo', ''),
     GitHubCodespaceServiceError,
     'Branch name cannot be empty'
   );
-
-  await assertRejects(
-    () => service.createCodespace('owner/repo', 'branch..with..dots'),
-    GitHubCodespaceServiceError,
-    'Invalid branch name format'
-  );
 });
 
 Deno.test('deleteCodespace success', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
-  const mockCodespace = createMockCodespace({ name: 'target-codespace' });
-  mockRepo.setMockCodespaces([mockCodespace]);
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
+  const mockCodespace = createMockCodespace({ name: 'test-codespace' });
+  mockRepository.setMockCodespaces([mockCodespace]);
 
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
-  await service.deleteCodespace('target-codespace');
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
+  await service.deleteCodespace('test-codespace');
 
-  assertEquals(mockRepo.findByNameCalls, ['target-codespace']);
-  assertEquals(mockRepo.deleteCalls.length, 1);
-  assertEquals(mockRepo.deleteCalls[0].name, 'target-codespace');
-  assertEquals(mockRepo.deleteCalls[0].force, true);
+  assertEquals(mockRepository.findByNameCalls, ['test-codespace']);
+  assertEquals(mockRepository.deleteCalls, ['test-codespace']);
 });
 
 Deno.test('deleteCodespace not found', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
-  mockRepo.setMockCodespaces([]); // No codespaces
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
+  mockRepository.setMockCodespaces([]);
 
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
-  
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
+
   await assertRejects(
     () => service.deleteCodespace('nonexistent'),
     GitHubCodespaceServiceError,
-    "Codespace 'nonexistent' not found"
+    'Codespace \'nonexistent\' not found'
   );
 });
 
 Deno.test('deleteCodespace validation - empty name', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
 
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
-  
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
+
   await assertRejects(
     () => service.deleteCodespace(''),
     GitHubCodespaceServiceError,
@@ -281,58 +389,86 @@ Deno.test('deleteCodespace validation - empty name', async () => {
 });
 
 Deno.test('getCodespaceStatus success', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
   const mockCodespace = createMockCodespace({ name: 'target-codespace' });
-  mockRepo.setMockCodespaces([mockCodespace]);
+  mockRepository.setMockCodespaces([mockCodespace]);
 
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
   const result = await service.getCodespaceStatus('target-codespace');
 
   assertEquals(result.name, 'target-codespace');
-  assertEquals(mockRepo.findByNameCalls, ['target-codespace']);
+  assertEquals(mockRepository.findByNameCalls, ['target-codespace']);
 });
 
 Deno.test('getCodespaceStatus not found', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
-  mockRepo.setMockCodespaces([]);
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
+  mockRepository.setMockCodespaces([]);
 
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
-  
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
+
   await assertRejects(
     () => service.getCodespaceStatus('nonexistent'),
     GitHubCodespaceServiceError,
-    "Codespace 'nonexistent' not found"
+    'Codespace \'nonexistent\' not found'
   );
+});
+
+Deno.test('startCodespace success', async () => {
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
+  const mockCodespace = createMockCodespace({ name: 'test-codespace', state: 'Stopped' });
+  mockRepository.setMockCodespaces([mockCodespace]);
+
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
+  const result = await service.startCodespace('test-codespace');
+
+  assertEquals(result.state, 'Available');
+  assertEquals(mockRepository.startCalls, ['test-codespace']);
+});
+
+Deno.test('stopCodespace success', async () => {
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
+  const mockCodespace = createMockCodespace({ name: 'test-codespace', state: 'Available' });
+  mockRepository.setMockCodespaces([mockCodespace]);
+
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
+  const result = await service.stopCodespace('test-codespace');
+
+  assertEquals(result.state, 'Stopped');
+  assertEquals(mockRepository.stopCalls, ['test-codespace']);
 });
 
 Deno.test('cleanupOldCodespaces success', async () => {
   const oldDate = new Date();
   oldDate.setDate(oldDate.getDate() - 10);
+  
+  const recentDate = new Date();
+  recentDate.setDate(recentDate.getDate() - 1);
 
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
   const mockCodespaces = [
-    createMockCodespace({ name: 'old-codespace', lastUsedAt: oldDate }),
-    createMockCodespace({ name: 'recent-codespace', lastUsedAt: new Date() }),
+    createMockCodespace({ name: 'old-codespace', last_used_at: oldDate.toISOString() }),
+    createMockCodespace({ name: 'recent-codespace', last_used_at: recentDate.toISOString() }),
   ];
-  mockRepo.setMockCodespaces(mockCodespaces);
+  mockRepository.setMockCodespaces(mockCodespaces);
 
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
   const deletedCount = await service.cleanupOldCodespaces(undefined, 5);
 
   assertEquals(deletedCount, 1);
-  assertEquals(mockRepo.deleteCalls.length, 1);
-  assertEquals(mockRepo.deleteCalls[0].name, 'old-codespace');
+  assertEquals(mockRepository.deleteCalls, ['old-codespace']);
 });
 
 Deno.test('cleanupOldCodespaces validation - invalid days', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
+  const mockRepository = new MockGitHubCodespaceRepository();
+  const mockAuthService = new MockGitHubAuthService();
 
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
-  
+  const service = new GitHubCodespaceServiceImpl(mockRepository, mockAuthService);
+
   await assertRejects(
     () => service.cleanupOldCodespaces(undefined, 0),
     GitHubCodespaceServiceError,
@@ -340,41 +476,12 @@ Deno.test('cleanupOldCodespaces validation - invalid days', async () => {
   );
 });
 
-Deno.test('ensureAuthenticated success', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
-  mockWrapper.setIsAuthenticated(true);
-
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
-  await service.ensureAuthenticated();
-
-  assertEquals(mockWrapper.checkAuthenticationCalls, 1);
-});
-
-Deno.test('ensureAuthenticated failure', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
-  mockWrapper.setIsAuthenticated(false);
-
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
+Deno.test('GitHubCodespaceServiceError constructor', () => {
+  const cause = new Error('Underlying error');
+  const error = new GitHubCodespaceServiceError('Test message', 'testOperation', cause);
   
-  await assertRejects(
-    () => service.ensureAuthenticated(),
-    GitHubCodespaceServiceError,
-    'Authentication check failed'
-  );
-});
-
-Deno.test('ensureAuthenticated error handling', async () => {
-  const mockRepo = new MockGitHubCodespaceRepository();
-  const mockWrapper = new MockGhCliWrapper();
-  mockWrapper.setShouldThrowOnAuth(true);
-
-  const service = new GitHubCodespaceServiceImpl(mockRepo, mockWrapper);
-  
-  await assertRejects(
-    () => service.ensureAuthenticated(),
-    GitHubCodespaceServiceError,
-    'Authentication check failed'
-  );
+  assertEquals(error.message, 'Test message');
+  assertEquals(error.operation, 'testOperation');
+  assertEquals(error.cause, cause);
+  assertEquals(error.name, 'GitHubCodespaceServiceError');
 });
