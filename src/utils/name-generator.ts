@@ -3,20 +3,97 @@
  */
 
 const ADJECTIVES = [
-  'stellar', 'cosmic', 'quantum', 'neural', 'cyber', 'digital', 'atomic', 'neon',
-  'phantom', 'shadow', 'blaze', 'storm', 'thunder', 'lightning', 'frost', 'crimson',
-  'azure', 'jade', 'golden', 'silver', 'iron', 'steel', 'crystal', 'ember',
-  'vortex', 'nexus', 'matrix', 'vector', 'cipher', 'prism', 'flux', 'echo',
-  'nova', 'comet', 'meteor', 'orbit', 'galaxy', 'pulsar', 'quasar', 'nebula'
+  "stellar",
+  "cosmic",
+  "quantum",
+  "neural",
+  "cyber",
+  "digital",
+  "atomic",
+  "neon",
+  "phantom",
+  "shadow",
+  "blaze",
+  "storm",
+  "thunder",
+  "lightning",
+  "frost",
+  "crimson",
+  "azure",
+  "jade",
+  "golden",
+  "silver",
+  "iron",
+  "steel",
+  "crystal",
+  "ember",
+  "vortex",
+  "nexus",
+  "matrix",
+  "vector",
+  "cipher",
+  "prism",
+  "flux",
+  "echo",
+  "nova",
+  "comet",
+  "meteor",
+  "orbit",
+  "galaxy",
+  "pulsar",
+  "quasar",
+  "nebula",
 ];
 
 const NOUNS = [
-  'falcon', 'hawk', 'eagle', 'raven', 'phoenix', 'dragon', 'wolf', 'tiger',
-  'panther', 'shark', 'viper', 'cobra', 'lynx', 'jaguar', 'cheetah', 'leopard',
-  'runner', 'hunter', 'scout', 'guardian', 'sentinel', 'warden', 'ranger', 'knight',
-  'warrior', 'champion', 'hero', 'legend', 'master', 'sage', 'wizard', 'mage',
-  'blade', 'arrow', 'spear', 'shield', 'hammer', 'axe', 'sword', 'dagger',
-  'storm', 'wave', 'flame', 'spark', 'bolt', 'ray', 'beam', 'flash'
+  "falcon",
+  "hawk",
+  "eagle",
+  "raven",
+  "phoenix",
+  "dragon",
+  "wolf",
+  "tiger",
+  "panther",
+  "shark",
+  "viper",
+  "cobra",
+  "lynx",
+  "jaguar",
+  "cheetah",
+  "leopard",
+  "runner",
+  "hunter",
+  "scout",
+  "guardian",
+  "sentinel",
+  "warden",
+  "ranger",
+  "knight",
+  "warrior",
+  "champion",
+  "hero",
+  "legend",
+  "master",
+  "sage",
+  "wizard",
+  "mage",
+  "blade",
+  "arrow",
+  "spear",
+  "shield",
+  "hammer",
+  "axe",
+  "sword",
+  "dagger",
+  "storm",
+  "wave",
+  "flame",
+  "spark",
+  "bolt",
+  "ray",
+  "beam",
+  "flash",
 ];
 
 /**
@@ -35,7 +112,7 @@ export function generateClaudinatorName(): string {
  * @returns True if the name starts with "claudinator_"
  */
 export function isClaudinatorName(name: string): boolean {
-  return name.startsWith('claudinator_');
+  return name.startsWith("claudinator_");
 }
 
 /**
@@ -47,5 +124,5 @@ export function extractCoolName(name: string): string | null {
   if (!isClaudinatorName(name)) {
     return null;
   }
-  return name.substring('claudinator_'.length);
+  return name.substring("claudinator_".length);
 }

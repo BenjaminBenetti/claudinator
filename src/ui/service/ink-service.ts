@@ -6,7 +6,7 @@ export class InkService {
   // =========================================================================
   // Private Properties
   // =========================================================================
-  
+
   private signalHandler: SignalHandler;
   private isRunning = false;
   private currentInstance: any = null;
@@ -25,7 +25,7 @@ export class InkService {
 
   public async start(component: React.ReactElement): Promise<void> {
     this.isRunning = true;
-    
+
     try {
       const { waitUntilExit, unmount } = render(component);
       this.currentInstance = { waitUntilExit, unmount };

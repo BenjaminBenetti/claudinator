@@ -10,7 +10,7 @@ export class AppService {
   // =========================================================================
   // Private Properties
   // =========================================================================
-  
+
   private signalHandler: SignalHandler;
   private isRunning = false;
   private inkService: any;
@@ -24,7 +24,7 @@ export class AppService {
   constructor(signalHandler: SignalHandler) {
     this.signalHandler = signalHandler;
     this.inkService = createInkService(signalHandler);
-    
+
     // Initialize services
     const agentRepository = createAgentRepository();
     this.agentService = createAgentService(agentRepository);
@@ -37,13 +37,13 @@ export class AppService {
 
   public async run(): Promise<void> {
     this.isRunning = true;
-    
+
     try {
       const appComponent = React.createElement(AppContainer, {
         agentService: this.agentService,
-        uiStateService: this.uiStateService
+        uiStateService: this.uiStateService,
       });
-      
+
       await this.inkService.start(appComponent);
     } catch (error) {
       if (!this.signalHandler.isShutdown) {

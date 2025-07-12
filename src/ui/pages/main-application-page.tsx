@@ -1,12 +1,16 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Box, useInput, useStdout } from "ink";
 import { AgentList } from "../components/agent-list.tsx";
-import { TileContainer, TileContainerRef } from "../components/tile-container.tsx";
+import {
+  TileContainer,
+  TileContainerRef,
+} from "../components/tile-container.tsx";
 import { AgentTile } from "../components/agent-tile.tsx";
 import { HelpBar } from "../components/help-bar.tsx";
 import { ErrorModal } from "../components/error-modal.tsx";
 import { AgentService } from "../../agent/service/agent-service.ts";
-import { UIStateService, FocusArea } from "../service/ui-state-service.ts";
+import { FocusArea, UIStateService } from "../service/ui-state-service.ts";
+import { AgentStatus } from "../../agent/models/agent-model.ts";
 
 interface MainApplicationPageProps {
   agentService: AgentService;
@@ -15,17 +19,29 @@ interface MainApplicationPageProps {
 
 export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
   agentService,
-  uiStateService
+  uiStateService,
 }: MainApplicationPageProps) => {
   const { stdout } = useStdout();
   const tileContainerRef = useRef<TileContainerRef>(null);
   const [agents, setAgents] = useState(() => agentService.listAgents());
-  const [selectedAgents, setSelectedAgents] = useState(() => agentService.getSelectedAgents());
-  const [focusArea, setFocusArea] = useState(() => uiStateService.getFocusArea());
-  const [selectedListIndex, setSelectedListIndex] = useState(() => uiStateService.getSelectedListIndex());
-  const [focusedTileIndex, setFocusedTileIndex] = useState(() => uiStateService.getFocusedTileIndex());
-  const [errorModalVisible, setErrorModalVisible] = useState(() => uiStateService.isErrorModalVisible());
-  const [errorModalMessage, setErrorModalMessage] = useState(() => uiStateService.getErrorModalMessage());
+  const [selectedAgents, setSelectedAgents] = useState(() =>
+    agentService.getSelectedAgents()
+  );
+  const [focusArea, setFocusArea] = useState(() =>
+    uiStateService.getFocusArea()
+  );
+  const [selectedListIndex, setSelectedListIndex] = useState(() =>
+    uiStateService.getSelectedListIndex()
+  );
+  const [focusedTileIndex, setFocusedTileIndex] = useState(() =>
+    uiStateService.getFocusedTileIndex()
+  );
+  const [errorModalVisible, setErrorModalVisible] = useState(() =>
+    uiStateService.isErrorModalVisible()
+  );
+  const [errorModalMessage, setErrorModalMessage] = useState(() =>
+    uiStateService.getErrorModalMessage()
+  );
 
   const refreshAgents = () => {
     setAgents(agentService.listAgents());
@@ -44,17 +60,37 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
 
   const handleNewAgent = async () => {
     try {
-      const newAgent = await agentService.createAgentWithAutoCodespace(`Agent ${agentService.getAgentCount() + 1}`);
+      const newAgent = await agentService.createAgentWithAutoCodespace(
+        `Agent ${agentService.getAgentCount() + 1}`,
+      );
       refreshAgents();
-      
+
       // Select the new agent in the list
-      const newIndex = agents.findIndex(a => a.id === newAgent.id);
+      const newIndex = agents.findIndex((a) => a.id === newAgent.id);
       if (newIndex !== -1) {
         handleSelectionChange(newIndex);
       }
+
+      // Set up periodic refresh to capture status updates during provisioning
+      const refreshInterval = setInterval(() => {
+        const currentAgent = agentService.getAgent(newAgent.id);
+        if (currentAgent && (currentAgent.status !== AgentStatus.Provisioning)) {
+          clearInterval(refreshInterval);
+        }
+        refreshAgents();
+      }, 1000); // Refresh every second during provisioning
+
+      // Clean up interval after 5 minutes to prevent infinite polling
+      setTimeout(() => {
+        clearInterval(refreshInterval);
+      }, 5 * 60 * 1000);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      uiStateService.showErrorModal(`Failed to create agent with codespace: ${errorMessage}`);
+      const errorMessage = error instanceof Error
+        ? error.message
+        : "Unknown error occurred";
+      uiStateService.showErrorModal(
+        `Failed to create agent with codespace: ${errorMessage}`,
+      );
       setErrorModalVisible(true);
       setErrorModalMessage(uiStateService.getErrorModalMessage());
     }
@@ -90,10 +126,14 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
 
     if (focusArea === FocusArea.Tile && selectedAgents.length > 1) {
       if (key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) {
-        const direction = key.upArrow ? 'up' : 
-                         key.downArrow ? 'down' : 
-                         key.leftArrow ? 'left' : 'right';
-        
+        const direction = key.upArrow
+          ? "up"
+          : key.downArrow
+          ? "down"
+          : key.leftArrow
+          ? "left"
+          : "right";
+
         tileContainerRef.current?.navigateTile(direction);
       }
     }
@@ -101,7 +141,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
 
   // Create tile children for selected agents
   const tileChildren = selectedAgents.map((agent, index) => (
-    <AgentTile 
+    <AgentTile
       key={agent.id}
       agent={agent}
       isFocused={focusArea === FocusArea.Tile && index === focusedTileIndex}
@@ -120,7 +160,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
           onAgentSelect={handleAgentSelect}
           onNewAgent={handleNewAgent}
         />
-        
+
         <Box flexDirection="column" marginLeft={1} height="100%">
           <Box flexGrow={1}>
             <TileContainer

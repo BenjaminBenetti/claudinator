@@ -4,7 +4,7 @@ async function main(): Promise<number> {
   try {
     const cliRunner = createCliRunnerService();
     const args = Deno.args;
-    
+
     return await cliRunner.run(args);
   } catch (error) {
     console.error("Fatal error:", error);

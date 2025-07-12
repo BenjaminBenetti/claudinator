@@ -1,95 +1,92 @@
 // GitHub Domain Exports
 // This module provides all types, interfaces, and services for GitHub Codespace management
 
-import { createGitHubAuthService } from './service/github-auth-service.ts';
-import { createOctokitClient } from './utils/octokit-client.ts';
-import { createGitHubCodespaceRepository } from './repo/github-codespace-repo.ts';
-import { createGitHubCodespaceService, type GitHubCodespaceService } from './service/github-codespace-service.ts';
+import { createGitHubAuthService } from "./service/github-auth-service.ts";
+import { createOctokitClient } from "./utils/octokit-client.ts";
+import { createGitHubCodespaceRepository } from "./repo/github-codespace-repo.ts";
+import {
+  createGitHubCodespaceService,
+  type GitHubCodespaceService,
+} from "./service/github-codespace-service.ts";
 
 // Models
 export type {
   Codespace,
-  CreateCodespaceOptions,
   CodespaceMachine,
-} from './models/codespace-model.ts';
+  CreateCodespaceOptions,
+} from "./models/codespace-model.ts";
 
-export type {
-  GitHubRepository,
-} from './models/github-repository-model.ts';
+export type { GitHubRepository } from "./models/github-repository-model.ts";
 
 // Authentication Service
 export {
-  GitHubAuthService,
-  GitHubAuthError,
   createGitHubAuthService,
-} from './service/github-auth-service.ts';
+  GitHubAuthError,
+  GitHubAuthService,
+} from "./service/github-auth-service.ts";
 
-export type {
-  IGitHubAuthService,
-} from './service/github-auth-service.ts';
+export type { IGitHubAuthService } from "./service/github-auth-service.ts";
 
 // Octokit Client
 export {
-  OctokitClient,
-  GitHubApiError,
   createOctokitClient,
-} from './utils/octokit-client.ts';
+  GitHubApiError,
+  OctokitClient,
+} from "./utils/octokit-client.ts";
 
-export type {
-  IOctokitClient,
-} from './utils/octokit-client.ts';
+export type { IOctokitClient } from "./utils/octokit-client.ts";
 
 // Repository Layer
 export {
+  createGitHubCodespaceRepository,
   GitHubCodespaceRepositoryImpl,
   GitHubRepositoryError,
-  createGitHubCodespaceRepository,
-} from './repo/github-codespace-repo.ts';
+} from "./repo/github-codespace-repo.ts";
 
 export type {
   GitHubCodespaceRepository,
-} from './repo/github-codespace-repo.ts';
+} from "./repo/github-codespace-repo.ts";
 
 // Service Layer
 export {
-  GitHubCodespaceServiceImpl,
-  GitHubCodespaceServiceError,
   createGitHubCodespaceService,
-} from './service/github-codespace-service.ts';
+  GitHubCodespaceServiceError,
+  GitHubCodespaceServiceImpl,
+} from "./service/github-codespace-service.ts";
 
 export type {
   GitHubCodespaceService,
-} from './service/github-codespace-service.ts';
+} from "./service/github-codespace-service.ts";
 
 // Error Handling
 export {
-  GitHubApiError as GitHubApiErrorExport,
   createGitHubApiError,
+  GitHubApiError as GitHubApiErrorExport,
   withGitHubApiErrorHandling,
-} from './errors/github-api-error.ts';
+} from "./errors/github-api-error.ts";
 
 // Configuration
 export {
-  GitHubConfigService,
-  createGitHubConfigService,
   createConfigFromEnvironment,
+  createGitHubConfigService,
   DEFAULT_GITHUB_CONFIG,
-} from './config/github-config.ts';
+  GitHubConfigService,
+} from "./config/github-config.ts";
 
 export type {
   GitHubConfig,
   IGitHubConfigService,
-} from './config/github-config.ts';
+} from "./config/github-config.ts";
 
 /**
  * Creates a complete GitHub Codespace service with all dependencies using Octokit
- * 
+ *
  * @returns Fully configured GitHubCodespaceService instance
- * 
+ *
  * @example
  * ```typescript
  * import { createCompleteGitHubCodespaceService } from './github/index.ts';
- * 
+ *
  * const service = createCompleteGitHubCodespaceService();
  * const codespaces = await service.listCodespaces();
  * ```

@@ -13,7 +13,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
   isVisible,
   error,
   onClose,
-  onRetry
+  onRetry,
 }: ErrorModalProps) => {
   useInput((_input, key) => {
     if (key.escape) {
@@ -32,42 +32,43 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
   }
 
   const getErrorMessage = (): string => {
-    if (typeof error === 'string') {
+    if (typeof error === "string") {
       return error;
     }
-    
+
     if (error instanceof GitHubApiError) {
       return error.getUserFriendlyMessage();
     }
-    
-    return error.message || 'An unknown error occurred';
+
+    return error.message || "An unknown error occurred";
   };
 
   const getErrorTitle = (): string => {
     if (error instanceof GitHubApiError) {
-      if (error.status === 401) return 'Authentication Error';
-      if (error.status === 403) return 'Permission Error';
-      if (error.status === 404) return 'Not Found';
-      if (error.status === 429) return 'Rate Limited';
-      if (error.status && error.status >= 500) return 'Server Error';
+      if (error.status === 401) return "Authentication Error";
+      if (error.status === 403) return "Permission Error";
+      if (error.status === 404) return "Not Found";
+      if (error.status === 429) return "Rate Limited";
+      if (error.status && error.status >= 500) return "Server Error";
     }
-    return 'Error';
+    return "Error";
   };
 
   const getErrorColor = (): string => {
     if (error instanceof GitHubApiError) {
-      if (error.status === 401 || error.status === 403) return 'yellow';
-      if (error.status === 404) return 'blue';
-      if (error.status === 429) return 'magenta';
-      if (error.status && error.status >= 500) return 'cyan';
+      if (error.status === 401 || error.status === 403) return "yellow";
+      if (error.status === 404) return "blue";
+      if (error.status === 429) return "magenta";
+      if (error.status && error.status >= 500) return "cyan";
     }
-    return 'red';
+    return "red";
   };
 
-  const showRetryOption = onRetry && error instanceof GitHubApiError && error.isRetryable();
-  const instructions = showRetryOption 
-    ? 'Press Enter to retry, Escape to close'
-    : 'Press Escape or Enter to close';
+  const showRetryOption = onRetry && error instanceof GitHubApiError &&
+    error.isRetryable();
+  const instructions = showRetryOption
+    ? "Press Enter to retry, Escape to close"
+    : "Press Escape or Enter to close";
 
   return (
     <Box
@@ -91,7 +92,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
         <Text color={getErrorColor()} bold>
           {getErrorTitle()}
         </Text>
-        
+
         <Box marginY={1} width="100%" justifyContent="center">
           <Text color="white" wrap="wrap">
             {getErrorMessage()}

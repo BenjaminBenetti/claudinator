@@ -8,10 +8,12 @@ interface HelpBarProps {
 
 const HELP_TEXT_MAP: Record<FocusArea, string> = {
   [FocusArea.Sidebar]: "d - Details, esc - Clear all selection",
-  [FocusArea.Tile]: "d - Details, t - Terminal, m - Menu, backspace - Close"
+  [FocusArea.Tile]: "d - Details, t - Terminal, m - Menu, backspace - Close",
 };
 
-export const HelpBar: React.FC<HelpBarProps> = ({ focusArea }: HelpBarProps) => {
+export const HelpBar: React.FC<HelpBarProps> = (
+  { focusArea }: HelpBarProps,
+) => {
   return (
     <Box
       borderStyle="single"

@@ -1,14 +1,14 @@
-import { Octokit } from 'octokit';
-import type { IGitHubAuthService } from '../service/github-auth-service.ts';
+import { Octokit } from "octokit";
+import type { IGitHubAuthService } from "../service/github-auth-service.ts";
 
 export class GitHubApiError extends Error {
   constructor(
     message: string,
     public readonly status?: number,
-    public readonly code?: string
+    public readonly code?: string,
   ) {
     super(message);
-    this.name = 'GitHubApiError';
+    this.name = "GitHubApiError";
   }
 }
 
@@ -46,7 +46,7 @@ export class OctokitClient implements IOctokitClient {
 
     try {
       const token = await this.authService.ensureAuthenticated();
-      
+
       this.octokit = new Octokit({
         auth: token,
         request: {
@@ -57,9 +57,9 @@ export class OctokitClient implements IOctokitClient {
       return this.octokit;
     } catch (error) {
       throw new GitHubApiError(
-        'Failed to create authenticated Octokit client',
+        "Failed to create authenticated Octokit client",
         undefined,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -84,6 +84,8 @@ export class OctokitClient implements IOctokitClient {
  * @param authService The authentication service to use
  * @returns A new OctokitClient instance
  */
-export function createOctokitClient(authService: IGitHubAuthService): IOctokitClient {
+export function createOctokitClient(
+  authService: IGitHubAuthService,
+): IOctokitClient {
   return OctokitClient.getInstance(authService);
 }

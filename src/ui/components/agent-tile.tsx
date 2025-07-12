@@ -9,37 +9,55 @@ interface AgentTileProps {
 
 export const AgentTile: React.FC<AgentTileProps> = ({
   agent,
-  isFocused = false
+  isFocused = false,
 }: AgentTileProps) => {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'green';
-      case 'running': return 'blue';
-      case 'error': return 'red';
-      default: return 'gray';
+      case "active":
+        return "green";
+      case "running":
+        return "blue";
+      case "provisioning":
+        return "red";
+      case "error":
+        return "red";
+      default:
+        return "gray";
     }
   };
 
   const getStatusSymbol = (status: string) => {
     switch (status) {
-      case 'active': return '●';
-      case 'running': return '▶';
-      case 'error': return '✗';
-      default: return '○';
+      case "active":
+        return "●";
+      case "running":
+        return "▶";
+      case "provisioning":
+        return "●";
+      case "error":
+        return "✗";
+      default:
+        return "○";
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'active': return 'Active';
-      case 'running': return 'Running';
-      case 'error': return 'Error';
-      default: return 'Idle';
+      case "active":
+        return "Active";
+      case "running":
+        return "Running";
+      case "provisioning":
+        return "Provisioning";
+      case "error":
+        return "Error";
+      default:
+        return "Idle";
     }
   };
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    return date.toLocaleDateString() + " " + date.toLocaleTimeString();
   };
 
   return (
@@ -57,28 +75,29 @@ export const AgentTile: React.FC<AgentTileProps> = ({
           </Text>
         </Box>
       </Box>
-      
+
       <Box marginBottom={1}>
         <Text color="gray" dimColor>
           ID: {agent.id}
         </Text>
       </Box>
-      
+
       <Box marginBottom={1}>
         <Text color="gray" dimColor>
           Created: {formatDate(agent.createdAt)}
         </Text>
       </Box>
-      
+
       <Box flexGrow={1} flexDirection="column">
         <Text color="white">
           Agent Details
         </Text>
         <Text color="gray" dimColor>
-          This agent is {getStatusText(agent.status).toLowerCase()} and ready for tasks.
+          This agent is {getStatusText(agent.status).toLowerCase()}{" "}
+          and ready for tasks.
         </Text>
       </Box>
-      
+
       {isFocused && (
         <Box>
           <Text color="blue" dimColor>

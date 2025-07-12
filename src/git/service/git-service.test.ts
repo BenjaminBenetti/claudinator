@@ -1,8 +1,5 @@
 import { assertEquals, assertInstanceOf, assertRejects } from "@std/assert";
-import {
-  createGitService,
-  GitServiceImpl,
-} from "./git-service.ts";
+import { createGitService, GitServiceImpl } from "./git-service.ts";
 import type { IGitCommandExecutor } from "./git-command-executor.ts";
 import { NotAGitRepositoryError } from "./git-command-executor.ts";
 import type { FileStatus, GitRemote } from "../models/git-status-model.ts";
@@ -32,7 +29,9 @@ class MockGitCommandExecutor implements IGitCommandExecutor {
       "getCurrentBranch",
     );
     if (response instanceof Error) throw response;
-    return Promise.resolve(response !== undefined ? response as string | null : "main");
+    return Promise.resolve(
+      response !== undefined ? response as string | null : "main",
+    );
   }
 
   getWorkingDirectoryStatus(

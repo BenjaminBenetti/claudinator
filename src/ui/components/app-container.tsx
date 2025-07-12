@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { WelcomePage } from "./welcome-page.tsx";
 import { MainApplicationPage } from "../pages/main-application-page.tsx";
 import { AgentService } from "../../agent/service/agent-service.ts";
@@ -11,7 +11,7 @@ interface AppContainerProps {
 
 export const AppContainer: React.FC<AppContainerProps> = ({
   agentService,
-  uiStateService
+  uiStateService,
 }: AppContainerProps) => {
   const [showSplash, setShowSplash] = useState(true);
 
@@ -28,7 +28,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   }
 
   return (
-    <MainApplicationPage 
+    <MainApplicationPage
       agentService={agentService}
       uiStateService={uiStateService}
     />

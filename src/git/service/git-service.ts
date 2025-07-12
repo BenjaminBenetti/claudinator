@@ -1,4 +1,9 @@
-import type { GitRepository, GitStatus, GitHubStatus, GitRemote } from "../models/git-status-model.ts";
+import type {
+  GitHubStatus,
+  GitRemote,
+  GitRepository,
+  GitStatus,
+} from "../models/git-status-model.ts";
 import type { IGitCommandExecutor } from "./git-command-executor.ts";
 
 export interface GitService {
@@ -88,7 +93,7 @@ export class GitServiceImpl implements GitService {
 
   private extractGitHubStatus(remotes: GitRemote[]): GitHubStatus {
     // Try to find origin remote first
-    const originRemote = remotes.find(remote => remote.name === 'origin');
+    const originRemote = remotes.find((remote) => remote.name === "origin");
     const targetRemote = originRemote || remotes[0];
 
     if (!targetRemote) {
@@ -101,8 +106,10 @@ export class GitServiceImpl implements GitService {
       };
     }
 
-    const githubInfo = this.parseGitHubUrl(targetRemote.fetchUrl || targetRemote.pushUrl);
-    
+    const githubInfo = this.parseGitHubUrl(
+      targetRemote.fetchUrl || targetRemote.pushUrl,
+    );
+
     return {
       isGitHubRepository: githubInfo !== null,
       repository: githubInfo ? `${githubInfo.owner}/${githubInfo.repo}` : null,
@@ -114,12 +121,16 @@ export class GitServiceImpl implements GitService {
 
   private parseGitHubUrl(url: string): { owner: string; repo: string } | null {
     // Handle GitHub URLs: https://github.com/owner/repo.git or git@github.com:owner/repo.git
-    const httpsMatch = url.match(/https:\/\/github\.com\/([^\/]+)\/([^\/]+?)(?:\.git)?$/);
+    const httpsMatch = url.match(
+      /https:\/\/github\.com\/([^\/]+)\/([^\/]+?)(?:\.git)?$/,
+    );
     if (httpsMatch) {
       return { owner: httpsMatch[1], repo: httpsMatch[2] };
     }
 
-    const sshMatch = url.match(/git@github\.com:([^\/]+)\/([^\/]+?)(?:\.git)?$/);
+    const sshMatch = url.match(
+      /git@github\.com:([^\/]+)\/([^\/]+?)(?:\.git)?$/,
+    );
     if (sshMatch) {
       return { owner: sshMatch[1], repo: sshMatch[2] };
     }

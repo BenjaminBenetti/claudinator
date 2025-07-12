@@ -4,7 +4,7 @@ import { parseCliArgs, showHelp, showVersion } from "./args-parser-utils.ts";
 Deno.test("parseCliArgs - should parse help flag", () => {
   const args = ["--help"];
   const result = parseCliArgs(args);
-  
+
   assertEquals(result.help, true);
   assertEquals(result.version, false);
   assertEquals(result._, []);
@@ -13,7 +13,7 @@ Deno.test("parseCliArgs - should parse help flag", () => {
 Deno.test("parseCliArgs - should parse help flag with alias", () => {
   const args = ["-h"];
   const result = parseCliArgs(args);
-  
+
   assertEquals(result.help, true);
   assertEquals(result.version, false);
   assertEquals(result._, []);
@@ -22,7 +22,7 @@ Deno.test("parseCliArgs - should parse help flag with alias", () => {
 Deno.test("parseCliArgs - should parse version flag", () => {
   const args = ["--version"];
   const result = parseCliArgs(args);
-  
+
   assertEquals(result.help, false);
   assertEquals(result.version, true);
   assertEquals(result._, []);
@@ -31,7 +31,7 @@ Deno.test("parseCliArgs - should parse version flag", () => {
 Deno.test("parseCliArgs - should parse version flag with alias", () => {
   const args = ["-v"];
   const result = parseCliArgs(args);
-  
+
   assertEquals(result.help, false);
   assertEquals(result.version, true);
   assertEquals(result._, []);
@@ -40,7 +40,7 @@ Deno.test("parseCliArgs - should parse version flag with alias", () => {
 Deno.test("parseCliArgs - should handle no arguments", () => {
   const args: string[] = [];
   const result = parseCliArgs(args);
-  
+
   assertEquals(result.help, false);
   assertEquals(result.version, false);
   assertEquals(result._, []);
@@ -49,7 +49,7 @@ Deno.test("parseCliArgs - should handle no arguments", () => {
 Deno.test("parseCliArgs - should handle multiple flags", () => {
   const args = ["--help", "--version"];
   const result = parseCliArgs(args);
-  
+
   assertEquals(result.help, true);
   assertEquals(result.version, true);
   assertEquals(result._, []);
@@ -58,7 +58,7 @@ Deno.test("parseCliArgs - should handle multiple flags", () => {
 Deno.test("parseCliArgs - should handle positional arguments", () => {
   const args = ["arg1", "arg2", "--help"];
   const result = parseCliArgs(args);
-  
+
   assertEquals(result.help, true);
   assertEquals(result.version, false);
   assertEquals(result._, ["arg1", "arg2"]);
@@ -67,11 +67,11 @@ Deno.test("parseCliArgs - should handle positional arguments", () => {
 Deno.test("showHelp - should not throw", () => {
   const originalLog = console.log;
   let output = "";
-  
+
   console.log = (msg: string) => {
     output += msg;
   };
-  
+
   try {
     showHelp();
     assertEquals(output.includes("Claudinator"), true);
@@ -84,11 +84,11 @@ Deno.test("showHelp - should not throw", () => {
 Deno.test("showVersion - should not throw", () => {
   const originalLog = console.log;
   let output = "";
-  
+
   console.log = (msg: string) => {
     output += msg;
   };
-  
+
   try {
     showVersion();
     assertEquals(output.includes("Claudinator"), true);

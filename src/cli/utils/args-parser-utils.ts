@@ -12,18 +12,18 @@ export function parseCliArgs(args: string[]): CliArgs {
     boolean: ["help", "version"],
     alias: {
       h: "help",
-      v: "version"
+      v: "version",
     },
     default: {
       help: false,
-      version: false
-    }
+      version: false,
+    },
   });
 
   return {
     help: parsed.help,
     version: parsed.version,
-    _: parsed._ as string[]
+    _: parsed._ as string[],
   };
 }
 

@@ -1,13 +1,13 @@
-import { Octokit } from 'octokit';
+import { Octokit } from "octokit";
 
 export class GitHubAuthError extends Error {
   constructor(
     message: string,
     public readonly code?: string,
-    public readonly details?: string
+    public readonly details?: string,
   ) {
     super(message);
-    this.name = 'GitHubAuthError';
+    this.name = "GitHubAuthError";
   }
 }
 
@@ -32,28 +32,28 @@ export class GitHubAuthService implements IGitHubAuthService {
     }
 
     try {
-      const command = new Deno.Command('gh', {
-        args: ['auth', 'token'],
-        stdout: 'piped',
-        stderr: 'piped',
+      const command = new Deno.Command("gh", {
+        args: ["auth", "token"],
+        stdout: "piped",
+        stderr: "piped",
       });
 
       const { code, stdout, stderr } = await command.output();
-      
+
       if (code !== 0) {
         const errorMessage = new TextDecoder().decode(stderr);
         throw new GitHubAuthError(
-          'Failed to get GitHub token from CLI',
-          'TOKEN_RETRIEVAL_FAILED',
-          errorMessage
+          "Failed to get GitHub token from CLI",
+          "TOKEN_RETRIEVAL_FAILED",
+          errorMessage,
         );
       }
 
       const token = new TextDecoder().decode(stdout).trim();
       if (!token) {
         throw new GitHubAuthError(
-          'Empty token received from GitHub CLI',
-          'EMPTY_TOKEN'
+          "Empty token received from GitHub CLI",
+          "EMPTY_TOKEN",
         );
       }
 
@@ -64,9 +64,9 @@ export class GitHubAuthService implements IGitHubAuthService {
         throw error;
       }
       throw new GitHubAuthError(
-        'Failed to execute gh auth token command',
-        'COMMAND_EXECUTION_FAILED',
-        error instanceof Error ? error.message : String(error)
+        "Failed to execute gh auth token command",
+        "COMMAND_EXECUTION_FAILED",
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -108,11 +108,11 @@ export class GitHubAuthService implements IGitHubAuthService {
     try {
       const token = await this.getToken();
       const isValid = await this.validateToken(token);
-      
+
       if (!isValid) {
         throw new GitHubAuthError(
           'GitHub token is invalid. Please run "gh auth login" to authenticate.',
-          'INVALID_TOKEN'
+          "INVALID_TOKEN",
         );
       }
 
@@ -121,11 +121,11 @@ export class GitHubAuthService implements IGitHubAuthService {
       if (error instanceof GitHubAuthError) {
         throw error;
       }
-      
+
       throw new GitHubAuthError(
         'Not authenticated with GitHub. Please run "gh auth login" to authenticate.',
-        'NOT_AUTHENTICATED',
-        error instanceof Error ? error.message : String(error)
+        "NOT_AUTHENTICATED",
+        error instanceof Error ? error.message : String(error),
       );
     }
   }

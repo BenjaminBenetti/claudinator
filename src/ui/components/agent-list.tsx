@@ -20,21 +20,21 @@ export const AgentList: React.FC<AgentListProps> = ({
   selectedAgents,
   onSelectionChange,
   onAgentSelect,
-  onNewAgent
+  onNewAgent,
 }: AgentListProps) => {
   const isActive = focusArea === FocusArea.Sidebar;
   const totalItems = agents.length + 1; // +1 for "New Agent" button
-  
+
   useInput((input, key) => {
     if (!isActive) return;
-    
+
     if (key.upArrow) {
       const newIndex = selectedIndex > 0 ? selectedIndex - 1 : totalItems - 1;
       onSelectionChange(newIndex);
     } else if (key.downArrow) {
       const newIndex = selectedIndex < totalItems - 1 ? selectedIndex + 1 : 0;
       onSelectionChange(newIndex);
-    } else if (key.return || input === ' ') {
+    } else if (key.return || input === " ") {
       if (selectedIndex < agents.length) {
         onAgentSelect(agents[selectedIndex].id);
       } else {
@@ -45,26 +45,38 @@ export const AgentList: React.FC<AgentListProps> = ({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'green';
-      case 'running': return 'blue';
-      case 'error': return 'red';
-      default: return 'gray';
+      case "active":
+        return "green";
+      case "running":
+        return "blue";
+      case "provisioning":
+        return "red";
+      case "error":
+        return "red";
+      default:
+        return "gray";
     }
   };
 
   const getStatusSymbol = (status: string) => {
     switch (status) {
-      case 'active': return '●';
-      case 'running': return '▶';
-      case 'error': return '✗';
-      default: return '○';
+      case "active":
+        return "●";
+      case "running":
+        return "▶";
+      case "provisioning":
+        return "●";
+      case "error":
+        return "✗";
+      default:
+        return "○";
     }
   };
 
   return (
-    <Box 
-      flexDirection="column" 
-      borderStyle="round" 
+    <Box
+      flexDirection="column"
+      borderStyle="round"
       borderColor={isActive ? "blue" : "gray"}
       paddingX={1}
       paddingY={1}
@@ -74,44 +86,58 @@ export const AgentList: React.FC<AgentListProps> = ({
       <Box marginBottom={1}>
         <Text color="white" bold>Agents</Text>
       </Box>
-      
+
       <Box flexDirection="column" flexGrow={1}>
         {agents.map((agent, index) => {
           const isCurrentlySelected = selectedIndex === index && isActive;
-          const isInTileArea = selectedAgents.some(selected => selected.id === agent.id);
-          
+          const isInTileArea = selectedAgents.some((selected) =>
+            selected.id === agent.id
+          );
+
           return (
-            <Box key={agent.id} marginBottom={0} flexDirection="row" justifyContent="space-between" width="100%">
-              <Text 
-                color={isCurrentlySelected ? "blue" : "white"}
-                backgroundColor={isCurrentlySelected ? "white" : undefined}
-                bold={isCurrentlySelected}
-              >
-                {isCurrentlySelected ? ">" : " "} 
-                <Text color={getStatusColor(agent.status)}>
-                  {getStatusSymbol(agent.status)}
+            <Box
+              key={agent.id}
+              marginBottom={0}
+              flexDirection="row"
+              justifyContent="space-between"
+              width="100%"
+            >
+              <Box flexDirection="column" flexGrow={1}>
+                <Text
+                  color={isCurrentlySelected ? "blue" : "white"}
+                  backgroundColor={isCurrentlySelected ? "white" : undefined}
+                  bold={isCurrentlySelected}
+                >
+                  {isCurrentlySelected ? ">" : " "}
+                  <Text color={getStatusColor(agent.status)}>
+                    {getStatusSymbol(agent.status)}
+                  </Text>
+                  {" " + agent.name}
                 </Text>
-                {" " + agent.name}
-              </Text>
-              {isInTileArea && (
-                <Text color="green" bold>▶</Text>
-              )}
+                {agent.status === "provisioning" && (
+                  <Text color="red" dimColor>
+                    {"   Provisioning"}
+                  </Text>
+                )}
+              </Box>
+              {isInTileArea && <Text color="green" bold>▶</Text>}
             </Box>
           );
         })}
       </Box>
-      
+
       <Box marginTop={1}>
-        <Text 
+        <Text
           color={selectedIndex === agents.length && isActive ? "blue" : "green"}
-          backgroundColor={selectedIndex === agents.length && isActive ? "white" : undefined}
+          backgroundColor={selectedIndex === agents.length && isActive
+            ? "white"
+            : undefined}
           bold={selectedIndex === agents.length && isActive}
         >
           {selectedIndex === agents.length && isActive ? ">" : " "} + New Agent
         </Text>
       </Box>
-      
-      
+
       <Box marginTop={1}>
         <Text color="gray" dimColor>
           ↑↓ Navigate, Space/Enter Select, Ctrl + C to Exit

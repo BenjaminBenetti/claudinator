@@ -2,7 +2,7 @@ export class SignalHandler {
   // =========================================================================
   // Private Properties
   // =========================================================================
-  
+
   private abortController: AbortController;
   private isShuttingDown = false;
   private cleanupCallbacks: (() => void | Promise<void>)[] = [];
@@ -24,16 +24,19 @@ export class SignalHandler {
     try {
       const sigintHandler = () => this.handleSignal("SIGINT");
       const sigtermHandler = () => this.handleSignal("SIGTERM");
-      
+
       Deno.addSignalListener("SIGINT", sigintHandler);
       Deno.addSignalListener("SIGTERM", sigtermHandler);
-      
+
       this.signalListeners = [
         { signal: "SIGINT", handler: sigintHandler },
-        { signal: "SIGTERM", handler: sigtermHandler }
+        { signal: "SIGTERM", handler: sigtermHandler },
       ];
     } catch (error) {
-      console.warn("Signal handling not available in this environment:", error instanceof Error ? error.message : String(error));
+      console.warn(
+        "Signal handling not available in this environment:",
+        error instanceof Error ? error.message : String(error),
+      );
     }
   }
 
@@ -44,7 +47,10 @@ export class SignalHandler {
       });
       this.signalListeners = [];
     } catch (error) {
-      console.warn("Error cleaning up signal listeners:", error instanceof Error ? error.message : String(error));
+      console.warn(
+        "Error cleaning up signal listeners:",
+        error instanceof Error ? error.message : String(error),
+      );
     }
   }
 
@@ -77,7 +83,7 @@ export class SignalHandler {
 
     try {
       this.abortController.abort();
-      
+
       await Promise.all(
         this.cleanupCallbacks.map(async (callback) => {
           try {
@@ -85,7 +91,7 @@ export class SignalHandler {
           } catch (error) {
             console.error("Error in cleanup callback:", error);
           }
-        })
+        }),
       );
 
       Deno.exit(0);

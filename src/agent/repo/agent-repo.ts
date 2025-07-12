@@ -9,7 +9,7 @@ export class AgentRepository {
   }
 
   public getAll(): Agent[] {
-    return Array.from(this.agents.values()).map(agent => ({ ...agent }));
+    return Array.from(this.agents.values()).map((agent) => ({ ...agent }));
   }
 
   public getById(id: string): Agent | undefined {

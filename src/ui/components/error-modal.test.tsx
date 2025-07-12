@@ -10,7 +10,7 @@ Deno.test("ErrorModal - should not render when not visible", () => {
       isVisible={false}
       error="Test error message"
       onClose={mockOnClose}
-    />
+    />,
   );
 
   assert(component.toJSON() === null);
@@ -23,7 +23,7 @@ Deno.test("ErrorModal - should render error message when visible", async () => {
       isVisible
       error="Test error message"
       onClose={mockOnClose}
-    />
+    />,
   );
 
   const tree = component.toJSON();
@@ -32,9 +32,9 @@ Deno.test("ErrorModal - should render error message when visible", async () => {
   assert(jsonOutput.includes("Error"));
   assert(jsonOutput.includes("Test error message"));
   assert(jsonOutput.includes("Press Escape or Enter to close"));
-  
+
   component.unmount();
-  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
 });
 
 Deno.test("ErrorModal - should render with proper structure when visible", async () => {
@@ -44,18 +44,18 @@ Deno.test("ErrorModal - should render with proper structure when visible", async
       isVisible
       error="Test error message"
       onClose={mockOnClose}
-    />
+    />,
   );
 
   const tree = component.toJSON();
   assert(tree !== null);
-  
+
   const jsonOutput = JSON.stringify(tree);
   assert(jsonOutput.includes("ink-box"));
-  assert(jsonOutput.includes("position\":\"absolute\""));
-  assert(jsonOutput.includes("borderStyle\":\"round\""));
-  assert(jsonOutput.includes("borderColor\":\"red\""));
-  
+  assert(jsonOutput.includes('position":"absolute"'));
+  assert(jsonOutput.includes('borderStyle":"round"'));
+  assert(jsonOutput.includes('borderColor":"red"'));
+
   component.unmount();
-  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
 });

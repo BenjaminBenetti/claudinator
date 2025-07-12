@@ -1,8 +1,19 @@
-import { Agent, AgentStatus, createAgent } from "../models/agent-model.ts";
+import {
+  Agent,
+  AgentStatus,
+  createAgent,
+  createProvisioningAgent,
+} from "../models/agent-model.ts";
 import { AgentRepository } from "../repo/agent-repo.ts";
-import { createCompleteGitHubCodespaceService, type GitHubCodespaceService } from "../../github/index.ts";
+import {
+  createCompleteGitHubCodespaceService,
+  type GitHubCodespaceService,
+} from "../../github/index.ts";
 import { createCompleteGitService, type GitService } from "../../git/index.ts";
-import { generateClaudinatorName, isClaudinatorName } from "../../utils/name-generator.ts";
+import {
+  generateClaudinatorName,
+  isClaudinatorName,
+} from "../../utils/name-generator.ts";
 import type { Codespace } from "../../github/models/codespace-model.ts";
 
 export interface CreateAgentOptions {
@@ -19,7 +30,7 @@ export class AgentService {
   constructor(
     repository: AgentRepository,
     githubCodespaceService: GitHubCodespaceService,
-    gitService: GitService
+    gitService: GitService,
   ) {
     this.repository = repository;
     this.githubCodespaceService = githubCodespaceService;
@@ -31,47 +42,98 @@ export class AgentService {
     return this.repository.create(agent);
   }
 
-  public async createAgentWithAutoCodespace(name: string, options?: CreateAgentOptions): Promise<Agent> {
-    // Ensure we're in a git repository
-    const gitStatus = await this.gitService.getStatus();
-    if (!gitStatus.isRepository) {
-      throw new Error('Must be in a git repository to create an agent');
-    }
+  public async createAgentWithAutoCodespace(
+    name: string,
+    options?: CreateAgentOptions,
+  ): Promise<Agent> {
+    // Create agent immediately with provisioning status
+    const provisioningAgent = createProvisioningAgent(name);
+    const agent = this.repository.create(provisioningAgent);
 
-    // Ensure GitHub authentication
-    await this.githubCodespaceService.ensureAuthenticated();
+    // Start codespace provisioning in background
+    this.provisionCodespaceForAgent(agent.id, options).catch((error) => {
+      // Update agent status to error if provisioning fails
+      this.repository.update(agent.id, { status: AgentStatus.Error });
+      console.error(
+        `Failed to provision codespace for agent ${agent.id}:`,
+        error,
+      );
+    });
 
-    // Determine repository and branch
-    const repository = options?.repository || gitStatus.githubStatus?.repository;
-    const branch = options?.branch || gitStatus.currentBranch || undefined;
+    return agent;
+  }
 
-    if (!repository) {
-      throw new Error('Could not determine GitHub repository. Ensure this is a GitHub repository or specify repository in options.');
-    }
-
-    // Try to find an available claudinator codespace to reuse
-    const availableCodespace = await this.findAvailableCodespace(repository, branch);
-    
-    let codespace: Codespace;
-    if (availableCodespace) {
-      // Reuse existing codespace
-      codespace = availableCodespace;
-      
-      // If the codespace is stopped, start it
-      if (codespace.state === 'Shutdown') {
-        console.log(`Starting stopped codespace: ${codespace.display_name || codespace.name}`);
-        codespace = await this.githubCodespaceService.startCodespace(codespace.name);
-      } else {
-        console.log(`Reusing available codespace: ${codespace.display_name || codespace.name}`);
+  private async provisionCodespaceForAgent(
+    agentId: string,
+    options?: CreateAgentOptions,
+  ): Promise<void> {
+    try {
+      // Ensure we're in a git repository
+      const gitStatus = await this.gitService.getStatus();
+      if (!gitStatus.isRepository) {
+        throw new Error("Must be in a git repository to create an agent");
       }
-    } else {
-      // Create new codespace with claudinator naming
-      codespace = await this.githubCodespaceService.createCodespace(repository, branch);
-    }
 
-    // Create agent with the codespace ID
-    const agent = createAgent(name, codespace.name);
-    return this.repository.create(agent);
+      // Ensure GitHub authentication
+      await this.githubCodespaceService.ensureAuthenticated();
+
+      // Determine repository and branch
+      const repository = options?.repository ||
+        gitStatus.githubStatus?.repository;
+      const branch = options?.branch || gitStatus.currentBranch || undefined;
+
+      if (!repository) {
+        throw new Error(
+          "Could not determine GitHub repository. Ensure this is a GitHub repository or specify repository in options.",
+        );
+      }
+
+      // Try to find an available claudinator codespace to reuse
+      const availableCodespace = await this.findAvailableCodespace(
+        repository,
+        branch,
+      );
+
+      let codespace: Codespace;
+      if (availableCodespace) {
+        // Reuse existing codespace
+        codespace = availableCodespace;
+
+        // If the codespace is stopped, start it
+        if (codespace.state === "Shutdown") {
+          console.log(
+            `Starting stopped codespace: ${
+              codespace.display_name || codespace.name
+            }`,
+          );
+          codespace = await this.githubCodespaceService.startCodespace(
+            codespace.name,
+          );
+        } else {
+          console.log(
+            `Reusing available codespace: ${
+              codespace.display_name || codespace.name
+            }`,
+          );
+        }
+      } else {
+        // Create new codespace with claudinator naming
+        codespace = await this.githubCodespaceService.createCodespace(
+          repository,
+          branch,
+        );
+      }
+
+      // Update agent with codespace ID and set status to idle
+      this.repository.update(agentId, {
+        codespaceId: codespace.name,
+        status: AgentStatus.Idle,
+      });
+    } catch (error) {
+      // Update agent status to error if provisioning fails
+      this.repository.update(agentId, { status: AgentStatus.Error });
+      throw error;
+    }
   }
 
   public listAgents(): Agent[] {
@@ -96,7 +158,7 @@ export class AgentService {
     if (!agent) {
       return false;
     }
-    
+
     this.selectedAgentIds.add(id);
     return true;
   }
@@ -122,7 +184,7 @@ export class AgentService {
 
   public getSelectedAgents(): Agent[] {
     return Array.from(this.selectedAgentIds)
-      .map(id => this.repository.getById(id))
+      .map((id) => this.repository.getById(id))
       .filter((agent): agent is Agent => agent !== undefined);
   }
 
@@ -158,47 +220,56 @@ export class AgentService {
    * @param branch The branch to match (optional)
    * @returns A codespace that can be reused, or null if none available
    */
-  private async findAvailableCodespace(repository: string, branch?: string): Promise<Codespace | null> {
+  private async findAvailableCodespace(
+    repository: string,
+    branch?: string,
+  ): Promise<Codespace | null> {
     try {
       // Get all codespaces for the repository
-      const codespaces = await this.githubCodespaceService.listCodespaces(repository);
-      
+      const codespaces = await this.githubCodespaceService.listCodespaces(
+        repository,
+      );
+
       // Filter for claudinator codespaces
-      const claudinatorCodespaces = codespaces.filter(codespace => 
-        isClaudinatorName(codespace.display_name || '')
+      const claudinatorCodespaces = codespaces.filter((codespace) =>
+        isClaudinatorName(codespace.display_name || "")
       );
 
       // Get all active agents to check which codespaces are in use
       const activeAgents = this.repository.getAll();
       const activeCodespaceIds = new Set(
         activeAgents
-          .map(agent => agent.codespaceId)
-          .filter((id): id is string => id !== undefined)
+          .map((agent) => agent.codespaceId)
+          .filter((id): id is string => id !== undefined),
       );
 
       // Find claudinator codespaces not associated with any active agent
       // Include both Available and Shutdown (stopped) codespaces for reuse
-      const availableCodespaces = claudinatorCodespaces.filter(codespace => 
+      const availableCodespaces = claudinatorCodespaces.filter((codespace) =>
         !activeCodespaceIds.has(codespace.name) &&
-        (codespace.state === 'Available' || codespace.state === 'Shutdown')
+        (codespace.state === "Available" || codespace.state === "Shutdown")
       );
 
       // Prioritize Available codespaces over Shutdown ones (faster to use)
-      const runningCodespaces = availableCodespaces.filter(cs => cs.state === 'Available');
-      const stoppedCodespaces = availableCodespaces.filter(cs => cs.state === 'Shutdown');
+      const runningCodespaces = availableCodespaces.filter((cs) =>
+        cs.state === "Available"
+      );
+      const stoppedCodespaces = availableCodespaces.filter((cs) =>
+        cs.state === "Shutdown"
+      );
 
       // If branch is specified, prefer codespaces on the same branch
       if (branch && availableCodespaces.length > 0) {
         // First try running codespaces on the correct branch
-        const runningBranchMatches = runningCodespaces.filter(codespace => 
+        const runningBranchMatches = runningCodespaces.filter((codespace) =>
           codespace.git_status?.ref === branch
         );
         if (runningBranchMatches.length > 0) {
           return runningBranchMatches[0];
         }
-        
+
         // Then try stopped codespaces on the correct branch
-        const stoppedBranchMatches = stoppedCodespaces.filter(codespace => 
+        const stoppedBranchMatches = stoppedCodespaces.filter((codespace) =>
           codespace.git_status?.ref === branch
         );
         if (stoppedBranchMatches.length > 0) {
@@ -210,15 +281,18 @@ export class AgentService {
       if (runningCodespaces.length > 0) {
         return runningCodespaces[0];
       }
-      
+
       return stoppedCodespaces.length > 0 ? stoppedCodespaces[0] : null;
     } catch (error) {
-      console.warn('Failed to find available codespace:', error);
+      console.warn("Failed to find available codespace:", error);
       return null; // Fallback to creating a new codespace
     }
   }
 
-  public linkAgentToCodespace(agentId: string, codespaceId: string): Agent | undefined {
+  public linkAgentToCodespace(
+    agentId: string,
+    codespaceId: string,
+  ): Agent | undefined {
     return this.repository.update(agentId, { codespaceId });
   }
 
@@ -227,23 +301,34 @@ export class AgentService {
   }
 
   public getAgentsByCodespace(codespaceId: string): Agent[] {
-    return this.repository.getAll().filter(agent => agent.codespaceId === codespaceId);
+    return this.repository.getAll().filter((agent) =>
+      agent.codespaceId === codespaceId
+    );
   }
 
   public getAgentsWithoutCodespace(): Agent[] {
-    return this.repository.getAll().filter(agent => !agent.codespaceId);
+    return this.repository.getAll().filter((agent) => !agent.codespaceId);
   }
 
   public hasAgentLinkedToCodespace(codespaceId: string): boolean {
-    return this.repository.getAll().some(agent => agent.codespaceId === codespaceId);
+    return this.repository.getAll().some((agent) =>
+      agent.codespaceId === codespaceId
+    );
   }
 
-  public async createAgentWithCodespace(name: string, repository: string, branch?: string): Promise<Agent> {
+  public async createAgentWithCodespace(
+    name: string,
+    repository: string,
+    branch?: string,
+  ): Promise<Agent> {
     // Ensure GitHub authentication
     await this.githubCodespaceService.ensureAuthenticated();
 
     // Create codespace for the specified repository/branch
-    const codespace = await this.githubCodespaceService.createCodespace(repository, branch);
+    const codespace = await this.githubCodespaceService.createCodespace(
+      repository,
+      branch,
+    );
 
     // Create agent with the codespace ID
     const agent = createAgent(name, codespace.name);
@@ -263,27 +348,34 @@ export class AgentService {
         return true; // Codespace exists and is accessible
       } catch (_error) {
         // Codespace doesn't exist or is inaccessible, will create a new one
-        console.warn(`Codespace ${agent.codespaceId} not found for agent ${agentId}, creating new one`);
+        console.warn(
+          `Codespace ${agent.codespaceId} not found for agent ${agentId}, creating new one`,
+        );
       }
     }
 
     // Get git context to create codespace
     const gitStatus = await this.gitService.getStatus();
     if (!gitStatus.isRepository) {
-      throw new Error('Must be in a git repository to create codespace for agent');
+      throw new Error(
+        "Must be in a git repository to create codespace for agent",
+      );
     }
 
     const repository = gitStatus.githubStatus?.repository;
     const branch = gitStatus.currentBranch || undefined;
 
     if (!repository) {
-      throw new Error('Could not determine GitHub repository from git context');
+      throw new Error("Could not determine GitHub repository from git context");
     }
 
     // Create new codespace and link to agent
-    const codespace = await this.githubCodespaceService.createCodespace(repository, branch);
+    const codespace = await this.githubCodespaceService.createCodespace(
+      repository,
+      branch,
+    );
     this.repository.update(agentId, { codespaceId: codespace.name });
-    
+
     return true;
   }
 
@@ -299,30 +391,37 @@ export class AgentService {
         await this.githubCodespaceService.deleteCodespace(agent.codespaceId);
       } catch (error) {
         // Ignore deletion errors - codespace might already be gone
-        console.warn(`Failed to delete existing codespace ${agent.codespaceId}:`, error);
+        console.warn(
+          `Failed to delete existing codespace ${agent.codespaceId}:`,
+          error,
+        );
       }
     }
 
     // Get git context to create new codespace
     const gitStatus = await this.gitService.getStatus();
     if (!gitStatus.isRepository) {
-      throw new Error('Must be in a git repository to recreate codespace for agent');
+      throw new Error(
+        "Must be in a git repository to recreate codespace for agent",
+      );
     }
 
     const repository = gitStatus.githubStatus?.repository;
     const branch = gitStatus.currentBranch || undefined;
 
     if (!repository) {
-      throw new Error('Could not determine GitHub repository from git context');
+      throw new Error("Could not determine GitHub repository from git context");
     }
 
     // Create new codespace and link to agent
-    const codespace = await this.githubCodespaceService.createCodespace(repository, branch);
+    const codespace = await this.githubCodespaceService.createCodespace(
+      repository,
+      branch,
+    );
     this.repository.update(agentId, { codespaceId: codespace.name });
-    
+
     return true;
   }
-
 }
 
 export function createAgentService(repository: AgentRepository): AgentService {

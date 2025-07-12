@@ -1,6 +1,6 @@
 export enum FocusArea {
-  Sidebar = 'sidebar',
-  Tile = 'tile'
+  Sidebar = "sidebar",
+  Tile = "tile",
 }
 
 export class UIStateService {
@@ -39,16 +39,16 @@ export class UIStateService {
     this.selectedListIndex = Math.max(0, index);
   }
 
-  public moveListSelection(direction: 'up' | 'down', totalItems: number): void {
+  public moveListSelection(direction: "up" | "down", totalItems: number): void {
     if (totalItems === 0) return;
 
-    if (direction === 'up') {
-      this.selectedListIndex = this.selectedListIndex > 0 
-        ? this.selectedListIndex - 1 
+    if (direction === "up") {
+      this.selectedListIndex = this.selectedListIndex > 0
+        ? this.selectedListIndex - 1
         : totalItems - 1;
     } else {
-      this.selectedListIndex = this.selectedListIndex < totalItems - 1 
-        ? this.selectedListIndex + 1 
+      this.selectedListIndex = this.selectedListIndex < totalItems - 1
+        ? this.selectedListIndex + 1
         : 0;
     }
   }
