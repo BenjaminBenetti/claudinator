@@ -8,7 +8,7 @@
 export enum LineEndingType {
   /** Unix/Linux line ending */
   LF = "LF",
-  /** Windows/DOS line ending */
+  /** Windows/DOS line ending (treated as single newline) */
   CRLF = "CRLF",
   /** Classic Mac/Carriage return (cursor positioning) */
   CR = "CR",
@@ -40,10 +40,10 @@ export interface LineParsingResult {
  * Line ending constants for pattern matching and processing.
  */
 export const LINE_ENDINGS = {
-  /** Carriage return + line feed (Windows) */
-  CRLF: "\r\n",
   /** Line feed only (Unix) */
   LF: "\n",
+  /** Carriage return + line feed (Windows) */
+  CRLF: "\r\n",
   /** Carriage return only (Mac/cursor positioning) */
   CR: "\r",
 } as const;
@@ -52,7 +52,7 @@ export const LINE_ENDINGS = {
  * Regular expression patterns for line ending detection.
  */
 export const LINE_ENDING_PATTERNS = {
-  /** Matches CRLF, LF, or CR line endings */
+  /** Matches CRLF, LF, or CR line endings (CRLF first to match longer sequence) */
   ALL_ENDINGS: /\r\n|\n|\r/g,
   /** Matches just CRLF */
   CRLF_ONLY: /\r\n/g,

@@ -69,11 +69,12 @@ export class TTYService implements ITTYService {
       const workingBuffer = [...buffer];
 
       // Determine if we should append to last line based on input characteristics
-      // Heuristic: if input starts with whitespace or punctuation, likely a continuation
-      const shouldAppendToLastLine = /^[\s\-_.,;:!?\'"(){}[\]<>]/.test(output);
+      // Heuristic: if input starts with whitespace (but not shell prompts), likely a continuation
+      const shouldAppendToLastLine = /^[\s]/.test(output) && !/^[\s]*[$#>]/.test(output);
       
       // Handle carriage return chains: if we have consecutive CR lines, compress them
       let currentOverwriteTarget = -1; // Index of line to overwrite, -1 means add new
+      let skippedFirstEmptyLine = false; // Track if we skip first empty line to adjust subsequent processing
       
       for (let i = 0; i < parseResult.lines.length; i++) {
         const parsedLine = parseResult.lines[i];
@@ -95,13 +96,32 @@ export class TTYService implements ITTYService {
           logger.debug(`CR overwrite: set line ${currentOverwriteTarget} to "${parsedLine.content}"`);
         } else {
           // Non-carriage return: process normally
-          this.processLine(workingBuffer, parsedLine, i === 0, shouldAppendToLastLine);
+          const isLastLine = i === parseResult.lines.length - 1;
+          const hasRemainder = !!(parseResult.remainder && parseResult.remainder.length > 0);
+          
+          // Special case: if this is the first line, it's empty, and buffer ends with empty line,
+          // don't create another empty line (this handles leading \r\n properly)  
+          const isFirstEmptyLineWithEmptyBufferEnd = i === 0 && 
+                                                     parsedLine.content === "" && 
+                                                     workingBuffer.length > 0 && 
+                                                     workingBuffer[workingBuffer.length - 1] === "";
+          
+          if (!isFirstEmptyLineWithEmptyBufferEnd) {
+            // Adjust isFirstLine based on whether we skipped the first empty line
+            const effectiveIsFirstLine = skippedFirstEmptyLine ? false : (i === 0);
+            this.processLine(workingBuffer, parsedLine, effectiveIsFirstLine, shouldAppendToLastLine, isLastLine, hasRemainder);
+          } else {
+            logger.debug(`Skipped processing empty first line - buffer already ends with empty line`);
+            skippedFirstEmptyLine = true;
+            // Since we skipped the first empty line, the next line should NOT be treated as first line
+            // and should use the existing empty line at the end of buffer
+          }
           currentOverwriteTarget = -1; // Reset overwrite target
         }
       }
       
       // Handle any remaining text that doesn't end with a line terminator
-      if (parseResult.remainder) {
+      if (parseResult.remainder && parseResult.remainder.length > 0) {
         // Check if we're in a carriage return chain
         const lastLineWasCarriageReturn = parseResult.lines.length > 0 &&
           parseResult.lines[parseResult.lines.length - 1].shouldOverwrite;
@@ -156,28 +176,47 @@ export class TTYService implements ITTYService {
    * @param parsedLine - The parsed line to process
    * @param isFirstLine - Whether this is the first line being processed
    * @param shouldAppendToLastLine - Whether to append to the last line vs create new line
+   * @param isLastLine - Whether this is the last line being processed
+   * @param hasRemainder - Whether there is remainder text after this line
    */
   private processLine(
     buffer: string[],
     parsedLine: ParsedLine,
     isFirstLine: boolean,
     shouldAppendToLastLine: boolean,
+    isLastLine: boolean,
+    hasRemainder: boolean,
   ): void {
     if (isFirstLine && buffer.length > 0 && shouldAppendToLastLine) {
       // First line that should continue the existing last line
       const lastIndex = buffer.length - 1;
       buffer[lastIndex] += parsedLine.content;
       logger.debug(`Appended to existing line ${lastIndex}: "${parsedLine.content}"`);
-      
-      // If this line had a line ending, create a new empty line
-      if (parsedLine.endingType !== null) {
-        buffer.push("");
-        logger.debug(`Created new line due to line ending: ${parsedLine.endingType}`);
-      }
     } else {
       // Add as new line
       buffer.push(parsedLine.content);
       logger.debug(`Added new line: "${parsedLine.content}"`);
+    }
+    
+    // If this line had a line ending and it's the last line with no remainder, create a new empty line
+    // This ensures that terminal sessions with trailing newlines get proper line separation
+    // BUT only for LF and CRLF endings, not CR (carriage returns should not create new lines)
+    // AND only if we don't already have too many consecutive empty lines at the end
+    if ((parsedLine.endingType === LineEndingType.LF || parsedLine.endingType === LineEndingType.CRLF) && 
+        isLastLine && !hasRemainder) {
+      // Count consecutive empty lines at the end of buffer
+      let emptyLinesAtEnd = 0;
+      for (let i = buffer.length - 1; i >= 0 && buffer[i] === ""; i--) {
+        emptyLinesAtEnd++;
+      }
+      
+      // Only create new empty line if we have fewer than 2 empty lines at the end
+      if (emptyLinesAtEnd < 2) {
+        buffer.push("");
+        logger.debug(`Created new line due to trailing line ending: ${parsedLine.endingType}`);
+      } else {
+        logger.debug(`Skipped creating empty line - already have ${emptyLinesAtEnd} empty lines at end`);
+      }
     }
   }
 

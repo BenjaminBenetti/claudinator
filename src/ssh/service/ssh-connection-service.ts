@@ -5,7 +5,6 @@ import type {
 import type { TerminalSize } from "../models/terminal-state-model.ts";
 import { createSSHSession } from "../models/ssh-session-model.ts";
 import { logger } from "../../logger/logger.ts";
-import { createTerminalTextDecoder } from "../terminal-decoder/terminal-text-decoder.ts";
 
 /**
  * Error thrown when SSH operations fail.
@@ -323,7 +322,6 @@ export class SSHConnectionService implements ISSHConnectionService {
     process: Deno.ChildProcess,
   ): ReadableStream<string> {
     const textDecoder = new TextDecoder();
-    const terminalDecoder = createTerminalTextDecoder();
 
     return new ReadableStream<string>({
       async start(controller) {
@@ -336,8 +334,7 @@ export class SSHConnectionService implements ISSHConnectionService {
                 const { done, value } = await stdoutReader.read();
                 if (done) break;
                 const rawText = textDecoder.decode(value, { stream: true });
-                const cleanText = terminalDecoder.decode(rawText);
-                controller.enqueue(cleanText);
+                controller.enqueue(rawText);
               }
             } catch (error) {
               logger.error("Error reading stdout:", error);
@@ -355,8 +352,7 @@ export class SSHConnectionService implements ISSHConnectionService {
                 const { done, value } = await stderrReader.read();
                 if (done) break;
                 const rawText = textDecoder.decode(value, { stream: true });
-                const cleanText = terminalDecoder.decode(rawText);
-                controller.enqueue(cleanText);
+                controller.enqueue(rawText);
               }
             } catch (error) {
               logger.error("Error reading stderr:", error);
