@@ -88,7 +88,8 @@ Example:
 
 ### Custom Logger
 
-The project includes a custom logger at `/src/logger/logger.ts` that writes logs to:
+The project includes a custom logger at `/src/logger/logger.ts` that writes logs
+to:
 
 **Log File Location**: `~/.claudinator/log.txt`
 
@@ -97,8 +98,9 @@ The project includes a custom logger at `/src/logger/logger.ts` that writes logs
 - Appends timestamped log entries in format: `[ISO_TIMESTAMP] LEVEL: MESSAGE`
 
 **Available Log Levels**:
+
 - `logger.info()` - General information
-- `logger.warn()` - Warning messages  
+- `logger.warn()` - Warning messages
 - `logger.error()` - Error messages
 - `logger.debug()` - Debug information
 - `logger.log()` - Alias for info

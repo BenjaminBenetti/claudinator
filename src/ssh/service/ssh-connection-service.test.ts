@@ -104,7 +104,11 @@ Deno.test("SSHConnectionService", async (t) => {
 
       // Verify that the command uses script for PTY allocation
       assertEquals(capturedCommand, "script");
-      assertEquals(capturedArgs, ["-qec", 'gh codespace ssh -c "codespace1"', "/dev/null"]);
+      assertEquals(capturedArgs, [
+        "-qec",
+        'gh codespace ssh -c "codespace1"',
+        "/dev/null",
+      ]);
     } finally {
       // Restore original command
       (globalThis as any).Deno.Command = originalCommand;

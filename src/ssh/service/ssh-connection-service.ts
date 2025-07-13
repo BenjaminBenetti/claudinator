@@ -5,6 +5,7 @@ import type {
 import type { TerminalSize } from "../models/terminal-state-model.ts";
 import { createSSHSession } from "../models/ssh-session-model.ts";
 import { logger } from "../../logger/logger.ts";
+import { createTerminalTextDecoder } from "../terminal-decoder/terminal-text-decoder.ts";
 
 /**
  * Error thrown when SSH operations fail.
@@ -111,20 +112,24 @@ export class SSHConnectionService implements ISSHConnectionService {
     terminalSize: TerminalSize,
   ): Promise<SSHSession> {
     const session = createSSHSession(agentId, codespaceId);
-    logger.info(`Connecting to codespace ${codespaceId} for session ${session.id}`);
+    logger.info(
+      `Connecting to codespace ${codespaceId} for session ${session.id}`,
+    );
     this.sessions.set(session.id, session);
 
     try {
       // Start SSH connection using gh CLI wrapped in script command for PTY allocation
       // The script command creates a real PTY which allows SSH to allocate a pseudo-terminal
       // This eliminates "pseudo-terminal will not be allocated" warnings and enables keystroke echo
-      logger.info(`Using script command to create PTY for SSH connection to ${codespaceId}`);
+      logger.info(
+        `Using script command to create PTY for SSH connection to ${codespaceId}`,
+      );
 
       const command = new Deno.Command("script", {
         args: [
           "-qec", // -q for quiet, -e for exit on child exit, -c for command
           `gh codespace ssh -c "${codespaceId}"`, // Quote codespace ID for safety
-          "/dev/null" // discard script output file
+          "/dev/null", // discard script output file
         ],
         stdin: "piped",
         stdout: "piped",
@@ -201,7 +206,9 @@ export class SSHConnectionService implements ISSHConnectionService {
       session.lastActivity = new Date();
       this.sessions.set(sessionId, session);
     } catch (error) {
-      logger.error(`Failed to send keystroke to session ${sessionId}: ${error}`);
+      logger.error(
+        `Failed to send keystroke to session ${sessionId}: ${error}`,
+      );
       throw new SSHConnectionError(
         `Failed to send keystroke to session ${sessionId}: ${
           error instanceof Error ? error.message : String(error)
@@ -225,7 +232,9 @@ export class SSHConnectionService implements ISSHConnectionService {
       const resizeSequence = `\x1b[8;${size.rows};${size.cols}t`;
       await this.sendKeystroke(sessionId, resizeSequence);
     } catch (error) {
-      logger.error(`Failed to resize terminal for session ${sessionId}: ${error}`);
+      logger.error(
+        `Failed to resize terminal for session ${sessionId}: ${error}`,
+      );
       throw new SSHConnectionError(
         `Failed to resize terminal for session ${sessionId}: ${
           error instanceof Error ? error.message : String(error)
@@ -313,7 +322,8 @@ export class SSHConnectionService implements ISSHConnectionService {
   private createOutputStream(
     process: Deno.ChildProcess,
   ): ReadableStream<string> {
-    const decoder = new TextDecoder();
+    const textDecoder = new TextDecoder();
+    const terminalDecoder = createTerminalTextDecoder();
 
     return new ReadableStream<string>({
       async start(controller) {
@@ -325,8 +335,9 @@ export class SSHConnectionService implements ISSHConnectionService {
               while (true) {
                 const { done, value } = await stdoutReader.read();
                 if (done) break;
-                const text = decoder.decode(value, { stream: true });
-                controller.enqueue(text);
+                const rawText = textDecoder.decode(value, { stream: true });
+                const cleanText = terminalDecoder.decode(rawText);
+                controller.enqueue(cleanText);
               }
             } catch (error) {
               logger.error("Error reading stdout:", error);
@@ -343,8 +354,9 @@ export class SSHConnectionService implements ISSHConnectionService {
               while (true) {
                 const { done, value } = await stderrReader.read();
                 if (done) break;
-                const text = decoder.decode(value, { stream: true });
-                controller.enqueue(text);
+                const rawText = textDecoder.decode(value, { stream: true });
+                const cleanText = terminalDecoder.decode(rawText);
+                controller.enqueue(cleanText);
               }
             } catch (error) {
               logger.error("Error reading stderr:", error);
@@ -368,7 +380,9 @@ export class SSHConnectionService implements ISSHConnectionService {
   ): Promise<void> {
     try {
       const status = await process.status;
-      logger.info(`Process exited for session ${sessionId}, success: ${status.success}`);
+      logger.info(
+        `Process exited for session ${sessionId}, success: ${status.success}`,
+      );
 
       const session = this.sessions.get(sessionId);
 

@@ -147,7 +147,9 @@ export class TerminalService implements ITerminalService {
     onStateChange?: TerminalStateChangeCallback,
   ): TerminalState {
     const terminalSize = size || DEFAULT_TERMINAL_SIZE;
-    logger.info(`Creating terminal state for session ${sessionId} (${terminalSize.cols}x${terminalSize.rows})`);
+    logger.info(
+      `Creating terminal state for session ${sessionId} (${terminalSize.cols}x${terminalSize.rows})`,
+    );
 
     const state = createTerminalState(sessionId, terminalSize);
     this.terminalStates.set(sessionId, state);
@@ -160,7 +162,9 @@ export class TerminalService implements ITerminalService {
     // Start the output pump
     this.startOutputPump(sessionId, sshConnectionService);
 
-    logger.info(`Terminal state created and output pump started for session ${sessionId}`);
+    logger.info(
+      `Terminal state created and output pump started for session ${sessionId}`,
+    );
     return state;
   }
 
@@ -245,9 +249,11 @@ export class TerminalService implements ITerminalService {
             logger.info(`Output stream ended for session ${sessionId}`);
             break;
           }
-
+          
+          logger.debug(`Read new output for session ${sessionId}: ${value}`);
           // Append output to terminal buffer (this will trigger callback)
           this.appendOutput(sessionId, value);
+          logger.info(this.getTerminalState(sessionId)?.outputBuffer.join("\n"));
         }
       } catch (error) {
         if (!abortController.signal.aborted) {
@@ -261,7 +267,9 @@ export class TerminalService implements ITerminalService {
   }
 
   updateTerminalSize(sessionId: string, size: TerminalSize): void {
-    logger.info(`Updating terminal size for session ${sessionId} to ${size.cols}x${size.rows}`);
+    logger.info(
+      `Updating terminal size for session ${sessionId} to ${size.cols}x${size.rows}`,
+    );
 
     const state = this.terminalStates.get(sessionId);
     if (!state) {
@@ -310,8 +318,15 @@ export class TerminalService implements ITerminalService {
   getVisibleLines(sessionId: string): string[] {
     const state = this.terminalStates.get(sessionId);
     if (!state) {
-      logger.error(`Terminal state not found for getVisibleLines: ${sessionId}`);
-      logger.error('Active Sessions:' + Array.from(this.terminalStates.values()).map(state => state.sessionId).join(", "));
+      logger.error(
+        `Terminal state not found for getVisibleLines: ${sessionId}`,
+      );
+      logger.error(
+        "Active Sessions:" +
+          Array.from(this.terminalStates.values()).map((state) =>
+            state.sessionId
+          ).join(", "),
+      );
       throw new TerminalServiceError(
         `Terminal state not found for session: ${sessionId}`,
         sessionId,
