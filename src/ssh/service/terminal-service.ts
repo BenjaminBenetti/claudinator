@@ -7,8 +7,8 @@ import {
   DEFAULT_TERMINAL_SIZE,
 } from "../models/terminal-state-model.ts";
 import type { ISSHConnectionService } from "./ssh-connection-service.ts";
+import type { ITTYService } from "../../tty/service/tty-service.ts";
 import { logger } from "../../logger/logger.ts";
-import { backTrace } from "jsr:@std/internal@^1.0.6/diff";
 
 /**
  * Callback function type for terminal state changes.
@@ -40,6 +40,7 @@ export interface ITerminalService {
    *
    * @param sessionId - ID of the SSH session
    * @param sshConnectionService - SSH connection service to get output stream from
+   * @param ttyService - TTY service for text processing
    * @param size - Initial terminal size
    * @param onStateChange - Optional callback for state changes
    * @returns The created terminal state
@@ -47,6 +48,7 @@ export interface ITerminalService {
   createTerminalState(
     sessionId: string,
     sshConnectionService: ISSHConnectionService,
+    ttyService: ITTYService,
     size?: TerminalSize,
     onStateChange?: TerminalStateChangeCallback,
   ): TerminalState;
@@ -139,10 +141,12 @@ export class TerminalService implements ITerminalService {
   private terminalStates = new Map<string, TerminalState>();
   private outputPumps = new Map<string, AbortController>();
   private stateChangeCallbacks = new Map<string, TerminalStateChangeCallback>();
+  private ttyServices = new Map<string, ITTYService>();
 
   createTerminalState(
     sessionId: string,
     sshConnectionService: ISSHConnectionService,
+    ttyService: ITTYService,
     size?: TerminalSize,
     onStateChange?: TerminalStateChangeCallback,
   ): TerminalState {
@@ -153,6 +157,7 @@ export class TerminalService implements ITerminalService {
 
     const state = createTerminalState(sessionId, terminalSize);
     this.terminalStates.set(sessionId, state);
+    this.ttyServices.set(sessionId, ttyService);
 
     // Store the callback if provided
     if (onStateChange) {
@@ -178,31 +183,36 @@ export class TerminalService implements ITerminalService {
       );
     }
 
-    // Split output by lines and process each line
-    const lines = output.split("\n");
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      if (i === 0 && state.outputBuffer.length > 0) {
-        // Append to the last line if it's the first line and buffer is not empty
-        const lastIndex = state.outputBuffer.length - 1;
-        state.outputBuffer[lastIndex] += line;
-      } else {
-        // Add as new line
-        state.outputBuffer.push(line);
-      }
+    const ttyService = this.ttyServices.get(sessionId);
+    if (!ttyService) {
+      logger.error(`TTY service not found for session: ${sessionId}`);
+      throw new TerminalServiceError(
+        `TTY service not found for session: ${sessionId}`,
+        sessionId,
+      );
     }
 
-    // Trim buffer if it exceeds max lines
-    if (state.outputBuffer.length > state.maxBufferLines) {
-      const excessLines = state.outputBuffer.length - state.maxBufferLines;
-      state.outputBuffer.splice(0, excessLines);
+    // Use TTY service to process the output with enhanced line ending handling
+    const ttyConfig = {
+      maxBufferLines: state.maxBufferLines,
+      handleCarriageReturn: true,
+    };
 
-      // Adjust scroll position if needed
-      if (state.scrollPosition > 0) {
-        state.scrollPosition = Math.max(0, state.scrollPosition - excessLines);
-      }
+    const result = ttyService.appendOutput(
+      state.outputBuffer,
+      output,
+      ttyConfig,
+    );
+
+    // Update state with processed buffer
+    state.outputBuffer = result.updatedBuffer;
+
+    // Adjust scroll position if buffer was trimmed
+    if (result.wasTrimmed && state.scrollPosition > 0) {
+      state.scrollPosition = Math.max(
+        0,
+        state.scrollPosition - result.linesRemoved,
+      );
     }
 
     // Auto-scroll to bottom if we were already at the bottom
@@ -249,11 +259,13 @@ export class TerminalService implements ITerminalService {
             logger.info(`Output stream ended for session ${sessionId}`);
             break;
           }
-          
+
           logger.debug(`Read new output for session ${sessionId}: ${value}`);
           // Append output to terminal buffer (this will trigger callback)
           this.appendOutput(sessionId, value);
-          logger.info(this.getTerminalState(sessionId)?.outputBuffer.join("\n"));
+          logger.info(
+            this.getTerminalState(sessionId)?.outputBuffer.join("\n"),
+          );
         }
       } catch (error) {
         if (!abortController.signal.aborted) {
@@ -376,9 +388,10 @@ export class TerminalService implements ITerminalService {
       this.outputPumps.delete(sessionId);
     }
 
-    // Clean up state and callback
+    // Clean up state, callback, and TTY service
     this.terminalStates.delete(sessionId);
     this.stateChangeCallbacks.delete(sessionId);
+    this.ttyServices.delete(sessionId);
 
     logger.info(`Terminal state removed for session ${sessionId}`);
   }

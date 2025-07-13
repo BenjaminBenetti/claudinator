@@ -8,11 +8,13 @@ import type {
 import type { TerminalState } from "../../../ssh/models/terminal-state-model.ts";
 import type { ISSHConnectionService } from "../../../ssh/service/ssh-connection-service.ts";
 import type { ITerminalService } from "../../../ssh/service/terminal-service.ts";
+import type { ITTYService } from "../../../tty/service/tty-service.ts";
 import { logger } from "../../../logger/logger.ts";
 
 interface ShellModeProps extends AgentTileProps {
   sshConnectionService?: ISSHConnectionService;
   terminalService?: ITerminalService;
+  ttyService?: ITTYService;
 }
 
 export const ShellMode: React.FC<ShellModeProps> = ({
@@ -20,6 +22,7 @@ export const ShellMode: React.FC<ShellModeProps> = ({
   isFocused = false,
   sshConnectionService,
   terminalService,
+  ttyService,
 }: ShellModeProps) => {
   const [sshSession, setSSHSession] = useState<SSHSession | undefined>();
   const [terminalState, setTerminalState] = useState<
@@ -71,9 +74,14 @@ export const ShellMode: React.FC<ShellModeProps> = ({
         setConnectionStatus(session.status);
 
         // Create terminal state with automatic output pump
+        if (!ttyService) {
+          throw new Error("TTY service is required for shell mode");
+        }
+
         const termState = terminalService.createTerminalState(
           session.id,
           sshConnectionService,
+          ttyService,
           terminalSize,
           (_sessionId, updatedState) => {
             // Callback for when terminal state changes

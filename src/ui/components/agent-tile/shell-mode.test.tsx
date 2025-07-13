@@ -6,6 +6,7 @@ import type { Agent } from "../../../agent/models/agent-model.ts";
 import { AgentStatus } from "../../../agent/models/agent-model.ts";
 import type { ISSHConnectionService } from "../../../ssh/service/ssh-connection-service.ts";
 import type { ITerminalService } from "../../../ssh/service/terminal-service.ts";
+import type { ITTYService } from "../../../tty/service/tty-service.ts";
 import type {
   SSHSession,
   SSHSessionStatus,
@@ -78,6 +79,7 @@ class MockTerminalService implements ITerminalService {
   createTerminalState(
     sessionId: string,
     _sshConnectionService: any,
+    _ttyService: ITTYService,
     size?: TerminalSize,
     _onStateChange?: any,
   ): TerminalState {

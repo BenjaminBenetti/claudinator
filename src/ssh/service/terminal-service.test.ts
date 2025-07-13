@@ -3,10 +3,51 @@ import { TerminalService, TerminalServiceError } from "./terminal-service.ts";
 import type { TerminalSize } from "../models/terminal-state-model.ts";
 import { DEFAULT_TERMINAL_SIZE } from "../models/terminal-state-model.ts";
 import type { ISSHConnectionService } from "./ssh-connection-service.ts";
+import type { ITTYService } from "../../tty/service/tty-service.ts";
+import type {
+  TTYAppendResult,
+  TTYBufferConfig,
+} from "../../tty/models/tty-buffer-model.ts";
 import {
   createSSHSession,
   SSHSessionStatus,
 } from "../models/ssh-session-model.ts";
+
+// Mock TTY Service for testing
+class MockTTYService implements ITTYService {
+  appendOutput(
+    buffer: string[],
+    output: string,
+    _config?: TTYBufferConfig,
+  ): TTYAppendResult {
+    // Simple mock: just split on \n and append (mirrors old behavior)
+    const lines = output.split("\n");
+    const updatedBuffer = [...buffer];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (i === 0 && updatedBuffer.length > 0) {
+        const lastIndex = updatedBuffer.length - 1;
+        updatedBuffer[lastIndex] += line;
+      } else {
+        updatedBuffer.push(line);
+      }
+    }
+
+    return {
+      updatedBuffer,
+      wasTrimmed: false,
+      linesRemoved: 0,
+    };
+  }
+
+  createBufferState() {
+    return {
+      buffer: [],
+      config: { maxBufferLines: 1000, handleCarriageReturn: true },
+    };
+  }
+}
 
 // Mock SSH Connection Service for testing
 class MockSSHConnectionService implements ISSHConnectionService {
@@ -66,7 +107,11 @@ Deno.test("TerminalService", async (t) => {
   await t.step("should create terminal state with default size", () => {
     const service = new TerminalService();
     const mockSSH = new MockSSHConnectionService();
-    const state = service.createTerminalState("session1", mockSSH);
+    const state = service.createTerminalState(
+      "session1",
+      mockSSH,
+      new MockTTYService(),
+    );
 
     assertEquals(state.sessionId, "session1");
     assertEquals(state.outputBuffer.length, 0);
@@ -80,7 +125,12 @@ Deno.test("TerminalService", async (t) => {
     const service = new TerminalService();
     const mockSSH = new MockSSHConnectionService();
     const customSize: TerminalSize = { cols: 120, rows: 30 };
-    const state = service.createTerminalState("session1", mockSSH, customSize);
+    const state = service.createTerminalState(
+      "session1",
+      mockSSH,
+      new MockTTYService(),
+      customSize,
+    );
 
     assertEquals(state.cols, 120);
     assertEquals(state.rows, 30);
@@ -89,7 +139,7 @@ Deno.test("TerminalService", async (t) => {
   await t.step("should append output to terminal buffer", () => {
     const service = new TerminalService();
     const mockSSH = new MockSSHConnectionService();
-    service.createTerminalState("session1", mockSSH);
+    service.createTerminalState("session1", mockSSH, new MockTTYService());
 
     service.appendOutput("session1", "Hello World\nSecond Line");
 
@@ -102,7 +152,7 @@ Deno.test("TerminalService", async (t) => {
   await t.step("should handle single line output correctly", () => {
     const service = new TerminalService();
     const mockSSH = new MockSSHConnectionService();
-    service.createTerminalState("session1", mockSSH);
+    service.createTerminalState("session1", mockSSH, new MockTTYService());
 
     service.appendOutput("session1", "First");
     service.appendOutput("session1", " Second");
@@ -116,7 +166,12 @@ Deno.test("TerminalService", async (t) => {
     const service = new TerminalService();
     const mockSSH = new MockSSHConnectionService();
     const customSize: TerminalSize = { cols: 80, rows: 24 };
-    service.createTerminalState("session1", mockSSH, customSize);
+    service.createTerminalState(
+      "session1",
+      mockSSH,
+      new MockTTYService(),
+      customSize,
+    );
 
     // Manually set a small max buffer for testing
     const state = service.getTerminalState("session1");
@@ -148,7 +203,7 @@ Deno.test("TerminalService", async (t) => {
   await t.step("should update terminal size", () => {
     const service = new TerminalService();
     const mockSSH = new MockSSHConnectionService();
-    service.createTerminalState("session1", mockSSH);
+    service.createTerminalState("session1", mockSSH, new MockTTYService());
 
     const newSize: TerminalSize = { cols: 120, rows: 40 };
     service.updateTerminalSize("session1", newSize);
@@ -175,7 +230,7 @@ Deno.test("TerminalService", async (t) => {
   await t.step("should scroll up correctly", () => {
     const service = new TerminalService();
     const mockSSH = new MockSSHConnectionService();
-    service.createTerminalState("session1", mockSSH);
+    service.createTerminalState("session1", mockSSH, new MockTTYService());
 
     // Add some content
     service.appendOutput("session1", "Line 1\nLine 2\nLine 3\nLine 4\nLine 5");
@@ -190,7 +245,12 @@ Deno.test("TerminalService", async (t) => {
     const service = new TerminalService();
     const mockSSH = new MockSSHConnectionService();
     const customSize: TerminalSize = { cols: 80, rows: 2 };
-    service.createTerminalState("session1", mockSSH, customSize);
+    service.createTerminalState(
+      "session1",
+      mockSSH,
+      new MockTTYService(),
+      customSize,
+    );
 
     // Add content that exceeds terminal height
     service.appendOutput("session1", "Line 1\nLine 2\nLine 3\nLine 4\nLine 5");
@@ -205,7 +265,12 @@ Deno.test("TerminalService", async (t) => {
     const service = new TerminalService();
     const mockSSH = new MockSSHConnectionService();
     const customSize: TerminalSize = { cols: 80, rows: 3 };
-    service.createTerminalState("session1", mockSSH, customSize);
+    service.createTerminalState(
+      "session1",
+      mockSSH,
+      new MockTTYService(),
+      customSize,
+    );
 
     service.appendOutput("session1", "Line 1\nLine 2\nLine 3\nLine 4\nLine 5");
 
@@ -222,7 +287,12 @@ Deno.test("TerminalService", async (t) => {
       const service = new TerminalService();
       const mockSSH = new MockSSHConnectionService();
       const customSize: TerminalSize = { cols: 80, rows: 5 };
-      service.createTerminalState("session1", mockSSH, customSize);
+      service.createTerminalState(
+        "session1",
+        mockSSH,
+        new MockTTYService(),
+        customSize,
+      );
 
       service.appendOutput("session1", "Line 1\nLine 2");
 
@@ -239,7 +309,7 @@ Deno.test("TerminalService", async (t) => {
   await t.step("should clear buffer", () => {
     const service = new TerminalService();
     const mockSSH = new MockSSHConnectionService();
-    service.createTerminalState("session1", mockSSH);
+    service.createTerminalState("session1", mockSSH, new MockTTYService());
 
     service.appendOutput("session1", "Line 1\nLine 2\nLine 3");
     service.clearBuffer("session1");
@@ -252,7 +322,7 @@ Deno.test("TerminalService", async (t) => {
   await t.step("should remove terminal state", () => {
     const service = new TerminalService();
     const mockSSH = new MockSSHConnectionService();
-    service.createTerminalState("session1", mockSSH);
+    service.createTerminalState("session1", mockSSH, new MockTTYService());
 
     let state = service.getTerminalState("session1");
     assertEquals(state?.sessionId, "session1");
