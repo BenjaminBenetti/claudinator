@@ -115,9 +115,17 @@ export class SSHConnectionService implements ISSHConnectionService {
     this.sessions.set(session.id, session);
 
     try {
-      // Start SSH connection using gh CLI
-      const command = new Deno.Command("gh", {
-        args: ["codespace", "ssh", "-c", codespaceId],
+      // Start SSH connection using gh CLI wrapped in script command for PTY allocation
+      // The script command creates a real PTY which allows SSH to allocate a pseudo-terminal
+      // This eliminates "pseudo-terminal will not be allocated" warnings and enables keystroke echo
+      logger.info(`Using script command to create PTY for SSH connection to ${codespaceId}`);
+
+      const command = new Deno.Command("script", {
+        args: [
+          "-qec", // -q for quiet, -e for exit on child exit, -c for command
+          `gh codespace ssh -c "${codespaceId}"`, // Quote codespace ID for safety
+          "/dev/null" // discard script output file
+        ],
         stdin: "piped",
         stdout: "piped",
         stderr: "piped",

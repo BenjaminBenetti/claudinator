@@ -82,6 +82,35 @@ Deno.test("SSHConnectionService", async (t) => {
     }
   });
 
+  await t.step("should use script command for PTY allocation", async () => {
+    // Mock Deno.Command to capture command and arguments
+    let capturedCommand: string = "";
+    let capturedArgs: string[] = [];
+    class CommandCapture extends MockCommand {
+      constructor(command: string, options: Deno.CommandOptions) {
+        super(command, options);
+        capturedCommand = command;
+        capturedArgs = options.args || [];
+      }
+    }
+
+    (globalThis as any).Deno.Command = CommandCapture;
+
+    const service = new SSHConnectionService();
+    const terminalSize: TerminalSize = { cols: 80, rows: 24 };
+
+    try {
+      await service.connectToCodespace("agent1", "codespace1", terminalSize);
+
+      // Verify that the command uses script for PTY allocation
+      assertEquals(capturedCommand, "script");
+      assertEquals(capturedArgs, ["-qec", 'gh codespace ssh -c "codespace1"', "/dev/null"]);
+    } finally {
+      // Restore original command
+      (globalThis as any).Deno.Command = originalCommand;
+    }
+  });
+
   await t.step("should handle connection failure", async () => {
     // Mock failed command
     class FailingCommand extends MockCommand {
