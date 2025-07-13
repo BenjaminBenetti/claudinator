@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Box, useInput, useStdout } from "ink";
 import { AgentList } from "../components/agent-list.tsx";
 import {
@@ -12,6 +12,9 @@ import { AgentService } from "../../agent/service/agent-service.ts";
 import { FocusArea, UIStateService } from "../service/ui-state-service.ts";
 import { AgentStatus } from "../../agent/models/agent-model.ts";
 import { useAgentSelection } from "../hooks/use-agent-selection.ts";
+import { createSSHServices } from "../../ssh/service/ssh-service-factory.ts";
+
+const sshServices = createSSHServices();
 
 interface MainApplicationPageProps {
   agentService: AgentService;
@@ -24,6 +27,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
 }: MainApplicationPageProps) => {
   const { stdout } = useStdout();
   const tileContainerRef = useRef<TileContainerRef>(null);
+
   const [agents, setAgents] = useState(() => agentService.listAgents());
   const [focusArea, setFocusArea] = useState(() =>
     uiStateService.getFocusArea()
@@ -101,11 +105,6 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
     }
   };
 
-  const handleFocusChange = (newFocus: FocusArea) => {
-    uiStateService.setFocusArea(newFocus);
-    setFocusArea(newFocus);
-  };
-
   const handleTileFocusChange = (index: number) => {
     uiStateService.setFocusedTileIndex(index);
     setFocusedTileIndex(index);
@@ -117,7 +116,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
     setErrorModalMessage("");
   };
 
-  useInput((input, key) => {
+  useInput((_input, key) => {
     // Don't handle input when error modal is visible
     if (errorModalVisible) {
       return;
@@ -129,8 +128,11 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
       return;
     }
 
-    if (focusArea === FocusArea.Tile && getSelectedAgentCount() > 1) {
-      if (key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) {
+    if (focusArea === FocusArea.Tile) {
+      if (
+        getSelectedAgentCount() > 1 &&
+        (key.upArrow || key.downArrow || key.leftArrow || key.rightArrow)
+      ) {
         const direction = key.upArrow
           ? "up"
           : key.downArrow
@@ -151,6 +153,9 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
       key={agent.id}
       agent={agent}
       isFocused={focusArea === FocusArea.Tile && index === focusedTileIndex}
+      displayMode={uiStateService.getTileDisplayMode(agent.id)}
+      sshConnectionService={sshServices.connectionService}
+      terminalService={sshServices.terminalService}
     />
   ));
 

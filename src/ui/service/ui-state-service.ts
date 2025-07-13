@@ -1,3 +1,5 @@
+import { DisplayMode } from "../components/agent-tile/types.ts";
+
 export enum FocusArea {
   Sidebar = "sidebar",
   Tile = "tile",
@@ -9,6 +11,7 @@ export class UIStateService {
   private focusedTileIndex: number = 0;
   private errorModalVisible: boolean = false;
   private errorModalMessage: string = "";
+  private tileDisplayModes: Map<string, DisplayMode> = new Map();
 
   public getFocusArea(): FocusArea {
     return this.currentFocus;
@@ -79,12 +82,57 @@ export class UIStateService {
     return this.errorModalMessage;
   }
 
+  /**
+   * Gets the display mode for a specific agent tile.
+   *
+   * @param agentId - ID of the agent
+   * @returns Display mode for the agent (defaults to Details)
+   */
+  public getTileDisplayMode(agentId: string): DisplayMode {
+    return this.tileDisplayModes.get(agentId) || DisplayMode.Details;
+  }
+
+  /**
+   * Sets the display mode for a specific agent tile.
+   *
+   * @param agentId - ID of the agent
+   * @param mode - Display mode to set
+   */
+  public setTileDisplayMode(agentId: string, mode: DisplayMode): void {
+    this.tileDisplayModes.set(agentId, mode);
+  }
+
+  /**
+   * Toggles between Details and Shell mode for a specific agent tile.
+   *
+   * @param agentId - ID of the agent
+   * @returns The new display mode
+   */
+  public toggleTileDisplayMode(agentId: string): DisplayMode {
+    const currentMode = this.getTileDisplayMode(agentId);
+    const newMode = currentMode === DisplayMode.Details
+      ? DisplayMode.Shell
+      : DisplayMode.Details;
+    this.setTileDisplayMode(agentId, newMode);
+    return newMode;
+  }
+
+  /**
+   * Removes the display mode state for an agent (cleanup when agent is removed).
+   *
+   * @param agentId - ID of the agent
+   */
+  public removeTileDisplayMode(agentId: string): void {
+    this.tileDisplayModes.delete(agentId);
+  }
+
   public resetState(): void {
     this.currentFocus = FocusArea.Sidebar;
     this.selectedListIndex = 0;
     this.focusedTileIndex = 0;
     this.errorModalVisible = false;
     this.errorModalMessage = "";
+    this.tileDisplayModes.clear();
   }
 }
 

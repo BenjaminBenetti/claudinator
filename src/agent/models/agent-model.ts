@@ -13,6 +13,7 @@ export interface Agent {
   createdAt: Date;
   codespaceId?: string;
   codespaceDisplayName?: string;
+  sshSessionId?: string;
 }
 
 export function createAgent(
@@ -27,6 +28,7 @@ export function createAgent(
     createdAt: new Date(),
     codespaceId,
     codespaceDisplayName,
+    sshSessionId: undefined,
   };
 }
 
@@ -38,6 +40,7 @@ export function createProvisioningAgent(name: string): Agent {
     createdAt: new Date(),
     codespaceId: undefined,
     codespaceDisplayName: undefined,
+    sshSessionId: undefined,
   };
 }
 
@@ -56,6 +59,7 @@ export function isValidAgent(agent: unknown): agent is Agent {
     obj.createdAt instanceof Date &&
     (obj.codespaceId === undefined || typeof obj.codespaceId === "string") &&
     (obj.codespaceDisplayName === undefined ||
-      typeof obj.codespaceDisplayName === "string")
+      typeof obj.codespaceDisplayName === "string") &&
+    (obj.sshSessionId === undefined || typeof obj.sshSessionId === "string")
   );
 }

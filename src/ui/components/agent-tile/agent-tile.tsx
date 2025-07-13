@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React from "react";
+import { useInput } from "ink";
 import { AgentTileProps, DisplayMode } from "./types.ts";
 import { DetailsMode } from "./details-mode.tsx";
 import { ShellMode } from "./shell-mode.tsx";
@@ -6,17 +7,47 @@ import { ShellMode } from "./shell-mode.tsx";
 export const AgentTile: React.FC<AgentTileProps> = ({
   agent,
   isFocused = false,
+  sshConnectionService,
+  terminalService,
 }: AgentTileProps) => {
-  const [displayMode, setDisplayMode] = useState<DisplayMode>(
+  const [displayMode, setDisplayMode] = React.useState<DisplayMode>(
     DisplayMode.Details,
   );
+
+  // Handle mode switching when this tile is focused
+  useInput((input, _key) => {
+    // Only handle input when this tile is focused and not in shell mode
+    // (shell mode handles its own input)
+    if (!isFocused || displayMode === DisplayMode.Shell) {
+      return;
+    }
+
+    // Handle 's' key to switch to shell mode
+    if (input === "s" && agent.codespaceId) {
+      setDisplayMode(DisplayMode.Shell);
+      return;
+    }
+
+    // Handle 'd' key to switch to details mode
+    if (input === "d") {
+      setDisplayMode(DisplayMode.Details);
+      return;
+    }
+  });
 
   const renderMode = () => {
     switch (displayMode) {
       case DisplayMode.Details:
         return <DetailsMode agent={agent} isFocused={isFocused} />;
       case DisplayMode.Shell:
-        return <ShellMode agent={agent} isFocused={isFocused} />;
+        return (
+          <ShellMode
+            agent={agent}
+            isFocused={isFocused}
+            sshConnectionService={sshConnectionService}
+            terminalService={terminalService}
+          />
+        );
       default:
         return <DetailsMode agent={agent} isFocused={isFocused} />;
     }

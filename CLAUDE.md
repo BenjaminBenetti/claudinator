@@ -84,6 +84,29 @@ Example:
 3. **Component Structure**: React functional components with hooks for UI
 4. **Testing Co-location**: Test files (`.test.ts`) next to source files
 
+## Logging and Debugging
+
+### Custom Logger
+
+The project includes a custom logger at `/src/logger/logger.ts` that writes logs to:
+
+**Log File Location**: `~/.claudinator/log.txt`
+
+- Expands `~` to the user's home directory (`$HOME`)
+- Creates the directory `~/.claudinator/` if it doesn't exist
+- Appends timestamped log entries in format: `[ISO_TIMESTAMP] LEVEL: MESSAGE`
+
+**Available Log Levels**:
+- `logger.info()` - General information
+- `logger.warn()` - Warning messages  
+- `logger.error()` - Error messages
+- `logger.debug()` - Debug information
+- `logger.log()` - Alias for info
+
+**Usage**: Import with `import { logger } from "@src/logger/logger.ts"`
+
+If the log file cannot be written, the logger falls back to `console.error()`.
+
 ## Code Organization Standards
 
 ### Class Member Organization

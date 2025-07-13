@@ -10,9 +10,7 @@ import {
   type GitHubCodespaceService,
 } from "../../github/index.ts";
 import { createCompleteGitService, type GitService } from "../../git/index.ts";
-import {
-  isClaudinatorName,
-} from "../../utils/name-generator.ts";
+import { isClaudinatorName } from "../../utils/name-generator.ts";
 import type { Codespace } from "../../github/models/codespace-model.ts";
 
 export interface CreateAgentOptions {
@@ -276,6 +274,52 @@ export class AgentService {
     return this.repository.getAll().some((agent) =>
       agent.codespaceId === codespaceId
     );
+  }
+
+  /**
+   * Attaches an SSH session to an agent.
+   *
+   * @param agentId - ID of the agent
+   * @param sessionId - ID of the SSH session to attach
+   * @returns Updated agent or undefined if agent not found
+   */
+  public async attachSSHSession(
+    agentId: string,
+    sessionId: string,
+  ): Promise<Agent | undefined> {
+    return this.repository.update(agentId, { sshSessionId: sessionId });
+  }
+
+  /**
+   * Detaches the SSH session from an agent.
+   *
+   * @param agentId - ID of the agent
+   * @returns Updated agent or undefined if agent not found
+   */
+  public async detachSSHSession(agentId: string): Promise<Agent | undefined> {
+    return this.repository.update(agentId, { sshSessionId: undefined });
+  }
+
+  /**
+   * Gets all agents that have active shell sessions.
+   *
+   * @returns Array of agents with active SSH sessions
+   */
+  public getAgentsWithActiveShells(): Agent[] {
+    return this.repository.getAll().filter((agent) =>
+      agent.sshSessionId !== undefined
+    );
+  }
+
+  /**
+   * Terminates the shell session for an agent by detaching it.
+   * Note: This only detaches the session reference from the agent.
+   * The actual SSH session termination should be handled by the SSH service.
+   *
+   * @param agentId - ID of the agent
+   */
+  public async terminateAgentShell(agentId: string): Promise<void> {
+    await this.detachSSHSession(agentId);
   }
 }
 

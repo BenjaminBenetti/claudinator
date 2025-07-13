@@ -17,3 +17,17 @@ Install the following on your system / devcontainer.
 
 - [GitHub CLI](https://cli.github.com/)
 - [Claude Code](https://www.anthropic.com/claude-code)
+
+## Codespace Requirements
+
+If you use a custom devcontainer on your repo, it `MUST` have the sshd feature
+installed. This is required for the CLI to connect to the codespace.
+
+```json
+"features": {
+  // ... other features
+  "ghcr.io/devcontainers/features/sshd:1": {
+    "version": "latest"
+  }
+}
+```
