@@ -82,7 +82,6 @@ Deno.test("TTYService - appendOutput with mixed line endings", () => {
     "line1\r\nline2\nline3\roverwrite",
   );
 
-  console.log(result.updatedBuffer);
   assertEquals(result.updatedBuffer, ["line1", "line2", "overwrite"]);
 });
 

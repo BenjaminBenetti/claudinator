@@ -68,28 +68,62 @@ export class TTYService implements ITTYService {
       const parseResult = parseLineEndings(output);
       const workingBuffer = [...buffer];
 
-      // Process each parsed line
+      // Determine if we should append to last line based on input characteristics
+      // Heuristic: if input starts with whitespace or punctuation, likely a continuation
+      const shouldAppendToLastLine = /^[\s\-_.,;:!?\'"(){}[\]<>]/.test(output);
+      
+      // Handle carriage return chains: if we have consecutive CR lines, compress them
+      let currentOverwriteTarget = -1; // Index of line to overwrite, -1 means add new
+      
       for (let i = 0; i < parseResult.lines.length; i++) {
         const parsedLine = parseResult.lines[i];
-        this.processLine(workingBuffer, parsedLine, i === 0);
+        
+        if (parsedLine.shouldOverwrite) {
+          if (currentOverwriteTarget === -1) {
+            // First carriage return: determine what to overwrite
+            if (i === 0 && workingBuffer.length > 0) {
+              // First line and buffer exists: overwrite last line
+              currentOverwriteTarget = workingBuffer.length - 1;
+            } else {
+              // Add new line and mark it for overwrite
+              workingBuffer.push("");
+              currentOverwriteTarget = workingBuffer.length - 1;
+            }
+          }
+          // Update the overwrite target with this content
+          workingBuffer[currentOverwriteTarget] = parsedLine.content;
+          logger.debug(`CR overwrite: set line ${currentOverwriteTarget} to "${parsedLine.content}"`);
+        } else {
+          // Non-carriage return: process normally
+          this.processLine(workingBuffer, parsedLine, i === 0, shouldAppendToLastLine);
+          currentOverwriteTarget = -1; // Reset overwrite target
+        }
       }
-
+      
       // Handle any remaining text that doesn't end with a line terminator
       if (parseResult.remainder) {
-        // Check if the last processed line was a carriage return overwrite
+        // Check if we're in a carriage return chain
         const lastLineWasCarriageReturn = parseResult.lines.length > 0 &&
           parseResult.lines[parseResult.lines.length - 1].shouldOverwrite;
-
-        if (lastLineWasCarriageReturn && workingBuffer.length > 0) {
-          // If the last line was a carriage return, the remainder should overwrite that line
-          const lastIndex = workingBuffer.length - 1;
-          workingBuffer[lastIndex] = parseResult.remainder;
+        
+        if (lastLineWasCarriageReturn && currentOverwriteTarget >= 0) {
+          // Continue the carriage return chain with remainder
+          workingBuffer[currentOverwriteTarget] = parseResult.remainder;
           logger.debug(
-            `Carriage return remainder overwrite: "${parseResult.remainder}"`,
+            `CR chain remainder: set line ${currentOverwriteTarget} to "${parseResult.remainder}"`,
           );
         } else if (parseResult.lines.length > 0) {
-          // If there are parsed lines, remainder goes on a new line
-          workingBuffer.push(parseResult.remainder);
+          // If there are parsed lines, check if last line is empty (from line ending)
+          const lastLine = workingBuffer[workingBuffer.length - 1];
+          if (lastLine === "") {
+            // Remainder goes into the empty line created by line ending
+            workingBuffer[workingBuffer.length - 1] = parseResult.remainder;
+            logger.debug(`Remainder filled empty line: "${parseResult.remainder}"`);
+          } else {
+            // Otherwise, remainder goes on a new line
+            workingBuffer.push(parseResult.remainder);
+            logger.debug(`Remainder added as new line: "${parseResult.remainder}"`);
+          }
         } else {
           // If there are no parsed lines, append to the last line in buffer
           this.appendToLastLine(workingBuffer, parseResult.remainder);
@@ -121,24 +155,27 @@ export class TTYService implements ITTYService {
    * @param buffer - The working buffer to modify
    * @param parsedLine - The parsed line to process
    * @param isFirstLine - Whether this is the first line being processed
+   * @param shouldAppendToLastLine - Whether to append to the last line vs create new line
    */
   private processLine(
     buffer: string[],
     parsedLine: ParsedLine,
     isFirstLine: boolean,
+    shouldAppendToLastLine: boolean,
   ): void {
-    if (parsedLine.shouldOverwrite && buffer.length > 0) {
-      // Carriage return: overwrite the last line
-      const lastIndex = buffer.length - 1;
-      buffer[lastIndex] = parsedLine.content;
-      logger.debug(`Overwrote line ${lastIndex} with carriage return`);
-    } else if (isFirstLine && buffer.length > 0) {
-      // First line: append to the existing last line
+    if (isFirstLine && buffer.length > 0 && shouldAppendToLastLine) {
+      // First line that should continue the existing last line
       const lastIndex = buffer.length - 1;
       buffer[lastIndex] += parsedLine.content;
-      logger.debug(`Appended to existing line ${lastIndex}`);
+      logger.debug(`Appended to existing line ${lastIndex}: "${parsedLine.content}"`);
+      
+      // If this line had a line ending, create a new empty line
+      if (parsedLine.endingType !== null) {
+        buffer.push("");
+        logger.debug(`Created new line due to line ending: ${parsedLine.endingType}`);
+      }
     } else {
-      // New line: add to buffer
+      // Add as new line
       buffer.push(parsedLine.content);
       logger.debug(`Added new line: "${parsedLine.content}"`);
     }

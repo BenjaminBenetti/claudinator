@@ -192,6 +192,9 @@ export class TerminalService implements ITerminalService {
       );
     }
 
+    // Check if we were at the bottom before updating
+    const wasAtBottom = this.isAtBottom(state);
+
     // Use TTY service to process the output with enhanced line ending handling
     const ttyConfig = {
       maxBufferLines: state.maxBufferLines,
@@ -215,8 +218,8 @@ export class TerminalService implements ITerminalService {
       );
     }
 
-    // Auto-scroll to bottom if we were already at the bottom
-    if (this.isAtBottom(state)) {
+    // Auto-scroll to bottom if we were at the bottom before the update
+    if (wasAtBottom) {
       this.scrollToBottom(state);
     }
 
@@ -263,9 +266,6 @@ export class TerminalService implements ITerminalService {
           logger.debug(`Read new output for session ${sessionId}: ${value}`);
           // Append output to terminal buffer (this will trigger callback)
           this.appendOutput(sessionId, value);
-          logger.info(
-            this.getTerminalState(sessionId)?.outputBuffer.join("\n"),
-          );
         }
       } catch (error) {
         if (!abortController.signal.aborted) {

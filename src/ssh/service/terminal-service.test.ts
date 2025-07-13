@@ -18,7 +18,7 @@ class MockTTYService implements ITTYService {
   appendOutput(
     buffer: string[],
     output: string,
-    _config?: TTYBufferConfig,
+    config?: TTYBufferConfig,
   ): TTYAppendResult {
     // Simple mock: just split on \n and append (mirrors old behavior)
     const lines = output.split("\n");
@@ -32,6 +32,18 @@ class MockTTYService implements ITTYService {
       } else {
         updatedBuffer.push(line);
       }
+    }
+
+    // Handle trimming if config is provided
+    const maxLines = config?.maxBufferLines ?? 1000;
+    if (updatedBuffer.length > maxLines) {
+      const excessLines = updatedBuffer.length - maxLines;
+      const trimmedBuffer = updatedBuffer.slice(excessLines);
+      return {
+        updatedBuffer: trimmedBuffer,
+        wasTrimmed: true,
+        linesRemoved: excessLines,
+      };
     }
 
     return {
