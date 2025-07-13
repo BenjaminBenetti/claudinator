@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Box, Text, useInput } from "ink";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Box, Text, useInput, useStdout } from "ink";
 import { AgentTileProps } from "./types.ts";
 import type {
   SSHSession,
@@ -35,14 +35,27 @@ export const ShellMode: React.FC<ShellModeProps> = ({
 
   // Track initialization state to prevent multiple initializations
   const isInitializedRef = useRef(false);
+  const hasReceivedOutputRef = useRef(false);
 
-  // Calculate terminal dimensions (simplified for this implementation)
-  const calculateTerminalSize = () => {
+  // Get actual terminal dimensions
+  const { stdout } = useStdout();
+
+  // Calculate terminal dimensions based on actual available space
+  const terminalSize = useMemo(() => {
+    // Account for tile container margins, status bar, and component padding
+    // Tile container uses: stdout.columns - 27, stdout.rows - 3
+    // We need to further account for tile borders, status bar, and margins
+    const availableWidth = Math.max(
+      20,
+      Math.floor((stdout.columns - 27) / 2) - 4,
+    ); // Account for 2-column layout and borders
+    const availableHeight = Math.max(5, stdout.rows - 3 - 3); // Account for status bar and margins
+
     return {
-      cols: 80, // Will be refined based on actual component dimensions
-      rows: 24,
+      cols: availableWidth,
+      rows: availableHeight,
     };
-  };
+  }, [stdout.columns, stdout.rows]);
 
   // Initialize SSH connection when component mounts (only once)
   useEffect(() => {
@@ -63,7 +76,7 @@ export const ShellMode: React.FC<ShellModeProps> = ({
         setConnectionStatus("connecting");
         setError(undefined);
 
-        const terminalSize = calculateTerminalSize();
+        // Use the memoized terminal size
         const session = await sshConnectionService.connectToCodespace(
           agent.id,
           agent.codespaceId!,
@@ -84,8 +97,38 @@ export const ShellMode: React.FC<ShellModeProps> = ({
           ttyService,
           terminalSize,
           (_sessionId, updatedState) => {
-            // Callback for when terminal state changes
-            setTerminalState({ ...updatedState });
+            // Check if this is the first output received
+            if (
+              !hasReceivedOutputRef.current &&
+              updatedState.outputBuffer.length > 0
+            ) {
+              hasReceivedOutputRef.current = true;
+
+              // Send resize command after first output is received
+              setTimeout(async () => {
+                try {
+                  await sshConnectionService.resizeTerminal(
+                    session.id,
+                    terminalSize,
+                  );
+                  logger.info(
+                    `Terminal resized after first output to ${terminalSize.cols}x${terminalSize.rows}`,
+                  );
+                } catch (err) {
+                  logger.warn(
+                    "Failed to resize terminal after first output:",
+                    err,
+                  );
+                }
+              }, 100); // Small delay to ensure output processing is complete
+            }
+
+            // Callback for when terminal state changes - force new object reference
+            setTerminalState((_prev: TerminalState | undefined) => ({
+              ...updatedState,
+              // Force React to detect the change by including a timestamp
+              lastUpdated: Date.now(),
+            }));
           },
         );
         setTerminalState(termState);
@@ -100,6 +143,40 @@ export const ShellMode: React.FC<ShellModeProps> = ({
     initializeConnection();
     logger.info("Terminal Connected");
   }, []); // Empty dependency array - only run once on mount
+
+  // Handle terminal size changes (for actual resizing, not initial connection)
+  useEffect(() => {
+    if (
+      sshSession && terminalService && sshConnectionService &&
+      hasReceivedOutputRef.current && connectionStatus === "connected"
+    ) {
+      const updateTerminalSize = async () => {
+        try {
+          // Update local terminal service state immediately
+          terminalService.updateTerminalSize(sshSession.id, terminalSize);
+
+          // Send resize to remote terminal if we've already received output
+          await sshConnectionService.resizeTerminal(
+            sshSession.id,
+            terminalSize,
+          );
+          logger.info(
+            `Terminal size updated to ${terminalSize.cols}x${terminalSize.rows}`,
+          );
+        } catch (err) {
+          logger.warn("Failed to update terminal size:", err);
+        }
+      };
+
+      updateTerminalSize();
+    }
+  }, [
+    terminalSize,
+    sshSession,
+    terminalService,
+    sshConnectionService,
+    connectionStatus,
+  ]); // Include dependencies for safety
 
   // Cleanup effect that only runs on unmount
   useEffect(() => {
@@ -233,7 +310,11 @@ export const ShellMode: React.FC<ShellModeProps> = ({
                     line,
                     index,
                   ) => (
-                    <React.Fragment key={index}>
+                    <React.Fragment
+                      key={`${terminalState.sessionId}-${terminalState.scrollPosition}-${index}-${
+                        line.slice(0, 20)
+                      }`}
+                    >
                       <Text>{line || " "}</Text>
                     </React.Fragment>
                   ));
