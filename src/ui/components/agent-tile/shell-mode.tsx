@@ -14,6 +14,7 @@ import { logger } from "../../../logger/logger.ts";
 interface ShellModeProps extends AgentTileProps {
   sshConnectionService?: ISSHConnectionService;
   terminalService?: ITerminalService;
+  tileCount?: number;
 }
 
 export const ShellMode: React.FC<ShellModeProps> = ({
@@ -21,6 +22,7 @@ export const ShellMode: React.FC<ShellModeProps> = ({
   isFocused = false,
   sshConnectionService,
   terminalService,
+  tileCount = 1,
 }: ShellModeProps) => {
   const [sshSession, setSSHSession] = useState<SSHSession | undefined>();
   const [terminalState, setTerminalState] = useState<
@@ -40,20 +42,34 @@ export const ShellMode: React.FC<ShellModeProps> = ({
 
   // Calculate terminal dimensions based on actual available space
   const terminalSize = useMemo(() => {
-    // Account for tile container margins, status bar, and component padding
-    // Tile container uses: stdout.columns - 27, stdout.rows - 3
-    // We need to further account for tile borders, status bar, and margins
-    const availableWidth = Math.max(
-      20,
-      Math.floor((stdout.columns - 27) / 2) - 4,
-    ); // Account for 2-column layout and borders
-    const availableHeight = Math.max(5, stdout.rows - 3 - 3); // Account for status bar and margins
+    // Calculate container width (same as TileContainer)
+    const containerWidth = stdout.columns - 27; // Account for sidebar width
+    const containerHeight = stdout.rows - 3; // Account for help bar height
+    
+    // Calculate tile width based on tile count (same logic as TileContainer)
+    let tileWidth: number;
+    if (tileCount === 1) {
+      tileWidth = containerWidth - 2; // Container padding
+    } else if (tileCount === 2) {
+      const availableWidth = containerWidth - 2 - 4 - 1; // Container padding, tile borders, margin
+      tileWidth = Math.floor(availableWidth / 2);
+    } else {
+      // For more than 2 tiles, use grid layout calculation
+      const columns = Math.ceil(Math.sqrt(tileCount));
+      const horizontalOverhead = 2 + (columns * 2) + (columns - 1);
+      const availableWidth = containerWidth - horizontalOverhead;
+      tileWidth = Math.floor(availableWidth / columns);
+    }
+    
+    // Account for tile internal padding and borders
+    const availableWidth = Math.max(20, tileWidth - 4); // Tile padding and borders
+    const availableHeight = Math.max(5, containerHeight - 6); // Status bar and padding
 
     return {
       cols: availableWidth,
       rows: availableHeight,
     };
-  }, [stdout.columns, stdout.rows]);
+  }, [stdout.columns, stdout.rows, tileCount]);
 
   // Initialize SSH connection when component mounts (only once)
   useEffect(() => {
@@ -103,6 +119,32 @@ export const ShellMode: React.FC<ShellModeProps> = ({
                     session.id,
                     terminalSize,
                   );
+                  
+                  // Also send explicit stty command to ensure remote terminal width is set
+                  setTimeout(async () => {
+                    try {
+                      const sttyCommand = `stty cols ${terminalSize.cols} rows ${terminalSize.rows}\r`;
+                      await sshConnectionService.sendKeystroke(session.id, sttyCommand);
+                      logger.info(
+                        `Sent stty command to set terminal size: ${terminalSize.cols}x${terminalSize.rows}`,
+                      );
+                      
+                      // Check what the remote terminal actually thinks its width is
+                      setTimeout(async () => {
+                        try {
+                          const checkCommand = `echo "TERM_WIDTH: $(tput cols)"\r`;
+                          await sshConnectionService.sendKeystroke(session.id, checkCommand);
+                          logger.info("Sent command to check remote terminal width");
+                        } catch (checkErr) {
+                          logger.warn("Failed to send tput command:", checkErr);
+                        }
+                      }, 100);
+                      
+                    } catch (sttyErr) {
+                      logger.warn("Failed to send stty command:", sttyErr);
+                    }
+                  }, 200); // Additional delay for stty command
+                  
                   logger.info(
                     `Terminal resized after first output to ${terminalSize.cols}x${terminalSize.rows}`,
                   );
@@ -152,6 +194,7 @@ export const ShellMode: React.FC<ShellModeProps> = ({
             sshSession.id,
             terminalSize,
           );
+
           logger.info(
             `Terminal size updated to ${terminalSize.cols}x${terminalSize.rows}`,
           );
@@ -302,7 +345,7 @@ export const ShellMode: React.FC<ShellModeProps> = ({
               isFocused={isFocused}
               width="100%"
               height="100%"
-              enableScrolling={true}
+              enableScrolling
             />
           )}
         {connectionStatus === "connecting" && (

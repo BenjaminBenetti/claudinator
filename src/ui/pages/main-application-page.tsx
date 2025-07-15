@@ -156,6 +156,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
       displayMode={uiStateService.getTileDisplayMode(agent.id)}
       sshConnectionService={sshServices.connectionService}
       terminalService={sshServices.terminalService}
+      tileCount={selectedAgents.length}
     />
   ));
 

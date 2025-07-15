@@ -9,6 +9,7 @@ export const AgentTile: React.FC<AgentTileProps> = ({
   isFocused = false,
   sshConnectionService,
   terminalService,
+  tileCount = 1,
 }: AgentTileProps) => {
   const [displayMode, setDisplayMode] = React.useState<DisplayMode>(
     DisplayMode.Details,
@@ -46,6 +47,7 @@ export const AgentTile: React.FC<AgentTileProps> = ({
             isFocused={isFocused}
             sshConnectionService={sshConnectionService}
             terminalService={terminalService}
+            tileCount={tileCount}
           />
         );
       default:

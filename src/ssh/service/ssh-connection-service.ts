@@ -123,11 +123,14 @@ export class SSHConnectionService implements ISSHConnectionService {
       logger.info(
         `Using script command to create PTY for SSH connection to ${codespaceId}`,
       );
+      logger.info(
+        `Setting SSH environment: COLUMNS=${terminalSize.cols}, LINES=${terminalSize.rows}`,
+      );
 
       const command = new Deno.Command("script", {
         args: [
           "-qec", // -q for quiet, -e for exit on child exit, -c for command
-          `gh codespace ssh -c "${codespaceId}"`, // Quote codespace ID for safety
+          `stty cols ${terminalSize.cols} rows ${terminalSize.rows}; gh codespace ssh -c "${codespaceId}"`, // Set terminal size before SSH
           "/dev/null", // discard script output file
         ],
         stdin: "piped",
@@ -226,10 +229,35 @@ export class SSHConnectionService implements ISSHConnectionService {
       );
     }
 
+    logger.info(
+      `SSH resizeTerminal called for session ${sessionId} with size ${size.cols}x${size.rows}`,
+    );
+
     try {
-      // Send terminal resize escape sequence (SIGWINCH simulation)
-      const resizeSequence = `\x1b[8;${size.rows};${size.cols}t`;
-      await this.sendKeystroke(sessionId, resizeSequence);
+      // Send terminal resize escape sequence as raw bytes
+      const inputWriter = this.inputWriters.get(sessionId);
+      if (!inputWriter) {
+        throw new SSHConnectionError(
+          `No input stream for session: ${sessionId}`,
+          sessionId,
+        );
+      }
+
+      // Create the escape sequence as bytes: ESC [ 8 ; rows ; cols t
+      const escapeBytes = new Uint8Array([
+        27, // ESC character
+        ...new TextEncoder().encode(`[8;${size.rows};${size.cols}t`)
+      ]);
+      
+      logger.info(
+        `Sending resize sequence as raw bytes (rows=${size.rows}, cols=${size.cols})`,
+      );
+      
+      await inputWriter.write(escapeBytes);
+      
+      // Update last activity
+      session.lastActivity = new Date();
+      this.sessions.set(sessionId, session);
     } catch (error) {
       logger.error(
         `Failed to resize terminal for session ${sessionId}: ${error}`,

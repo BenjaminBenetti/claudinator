@@ -13,4 +13,5 @@ export interface AgentTileProps {
   displayMode?: DisplayMode;
   sshConnectionService?: ISSHConnectionService;
   terminalService?: ITerminalService;
+  tileCount?: number;
 }
