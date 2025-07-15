@@ -8,13 +8,11 @@ import type {
 import type { TerminalState } from "../../../ssh/models/terminal-state-model.ts";
 import type { ISSHConnectionService } from "../../../ssh/service/ssh-connection-service.ts";
 import type { ITerminalService } from "../../../ssh/service/terminal-service.ts";
-import type { ITTYService } from "../../../tty/service/tty-service.ts";
 import { logger } from "../../../logger/logger.ts";
 
 interface ShellModeProps extends AgentTileProps {
   sshConnectionService?: ISSHConnectionService;
   terminalService?: ITerminalService;
-  ttyService?: ITTYService;
 }
 
 export const ShellMode: React.FC<ShellModeProps> = ({
@@ -22,7 +20,6 @@ export const ShellMode: React.FC<ShellModeProps> = ({
   isFocused = false,
   sshConnectionService,
   terminalService,
-  ttyService,
 }: ShellModeProps) => {
   const [sshSession, setSSHSession] = useState<SSHSession | undefined>();
   const [terminalState, setTerminalState] = useState<
@@ -86,15 +83,11 @@ export const ShellMode: React.FC<ShellModeProps> = ({
         setSSHSession(session);
         setConnectionStatus(session.status);
 
-        // Create terminal state with automatic output pump
-        if (!ttyService) {
-          throw new Error("TTY service is required for shell mode");
-        }
+      
 
         const termState = terminalService.createTerminalState(
           session.id,
           sshConnectionService,
-          ttyService,
           terminalSize,
           (_sessionId, updatedState) => {
             // Check if this is the first output received
@@ -297,34 +290,6 @@ export const ShellMode: React.FC<ShellModeProps> = ({
         {agent.codespaceDisplayName && (
           <Text color="gray" dimColor>({agent.codespaceDisplayName})</Text>
         )}
-      </Box>
-
-      {/* Terminal output area */}
-      <Box flexDirection="column" flexGrow={1}>
-        {terminalState && terminalService && connectionStatus === "connected"
-          ? (
-            (() => {
-              try {
-                return terminalService.getVisibleLines(terminalState.sessionId)
-                  .map((
-                    line,
-                    index,
-                  ) => (
-                    <React.Fragment
-                      key={`${terminalState.sessionId}-${terminalState.scrollPosition}-${index}-${
-                        line.slice(0, 20)
-                      }`}
-                    >
-                      <Text>{line || " "}</Text>
-                    </React.Fragment>
-                  ));
-              } catch (error) {
-                console.warn("Failed to get visible lines:", error);
-                return <Text color="gray" dimColor>Terminal disconnected</Text>;
-              }
-            })()
-          )
-          : <Text color="gray" dimColor>Initializing terminal...</Text>}
       </Box>
 
       {/* Footer with focus indicator */}

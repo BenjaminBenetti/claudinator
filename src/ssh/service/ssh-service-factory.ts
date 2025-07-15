@@ -1,11 +1,9 @@
 import type { ISSHConnectionService } from "./ssh-connection-service.ts";
 import type { ITerminalService } from "./terminal-service.ts";
 import type { ISSHSessionRepo } from "../repo/ssh-session-repo.ts";
-import type { ITTYService } from "../../tty/service/tty-service.ts";
 import { createSSHConnectionService } from "./ssh-connection-service.ts";
 import { createTerminalService } from "./terminal-service.ts";
 import { createSSHSessionRepo } from "../repo/ssh-session-repo.ts";
-import { createTTYService } from "../../tty/service/tty-service.ts";
 
 /**
  * Configuration options for SSH services.
@@ -23,8 +21,6 @@ export interface SSHServices {
   connectionService: ISSHConnectionService;
   /** Terminal service for managing terminal state and rendering */
   terminalService: ITerminalService;
-  /** TTY service for text processing */
-  ttyService: ITTYService;
   /** SSH session repository for persistence */
   sessionRepo: ISSHSessionRepo;
 }
@@ -40,8 +36,6 @@ export function createSSHServices(config?: SSHServiceConfig): SSHServices {
   // Create repository (no dependencies)
   const sessionRepo = createSSHSessionRepo();
 
-  // Create TTY service (no dependencies)
-  const ttyService = createTTYService();
 
   // Create terminal service (no dependencies)
   const terminalService = createTerminalService();
@@ -54,7 +48,6 @@ export function createSSHServices(config?: SSHServiceConfig): SSHServices {
   return {
     connectionService,
     terminalService,
-    ttyService,
     sessionRepo,
   };
 }
