@@ -260,15 +260,6 @@ export class TerminalService implements ITerminalService {
           logger.debug(`Read new output for session ${sessionId}: ${value}`);
           // Append output to terminal buffer (this will trigger callback)
           this.appendOutput(sessionId, value);
-          // Log last 12 lines of terminal buffer
-          const state = this.terminalStates.get(sessionId);
-          if (state) {
-            const lastLines = state.outputBuffer.slice(-12);
-            logger.debug(
-              `Last 12 lines in buffer for session ${sessionId}:`,
-              lastLines,
-            );
-          }
         }
       } catch (error) {
         if (!abortController.signal.aborted) {

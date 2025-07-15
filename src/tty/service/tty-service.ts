@@ -449,8 +449,7 @@ export class TTYService implements ITTYService {
 
     // If we're past the bottom of the screen, scroll
     if (buffer.cursor.row >= buffer.size.rows) {
-      buffer.cursor.row = buffer.size.rows - 1;
-
+      
       // Add a new line and scroll if needed
       currentBuffer.lines.push(createTerminalLine());
 
