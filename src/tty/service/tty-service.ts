@@ -97,6 +97,17 @@ export interface ITTYService {
   getVisibleLines(sessionId: string): string[];
 
   /**
+   * Gets visible lines with their actual buffer indices for proper rendering.
+   * This method provides both the line content and the actual buffer line index,
+   * enabling proper character-level rendering with attributes.
+   *
+   * @param sessionId - ID of the session
+   * @returns Array of visible lines with their buffer indices
+   * @throws TTYServiceError if session not found
+   */
+  getVisibleLinesWithIndices(sessionId: string): Array<{ lineIndex: number; lineText: string }>;
+
+  /**
    * Resizes the terminal and adjusts the buffer accordingly.
    *
    * @param sessionId - ID of the session
@@ -221,6 +232,47 @@ export class TTYService implements ITTYService {
     // Pad with empty lines to fill terminal height
     while (visibleLines.length < buffer.size.rows) {
       visibleLines.push("");
+    }
+
+    return visibleLines;
+  }
+
+  /**
+   * Gets visible lines with their actual buffer indices for proper rendering.
+   * This method provides both the line content and the actual buffer line index,
+   * enabling proper character-level rendering with attributes.
+   *
+   * @param sessionId - ID of the session
+   * @returns Array of visible lines with their buffer indices
+   */
+  getVisibleLinesWithIndices(sessionId: string): Array<{ lineIndex: number; lineText: string }> {
+    const buffer = this.ttyBuffers.get(sessionId);
+    if (!buffer) {
+      throw new TTYServiceError(
+        `TTY buffer not found for session: ${sessionId}`,
+        sessionId,
+      );
+    }
+
+    const currentBuffer = buffer.useAlternateBuffer
+      ? buffer.alternateBuffer
+      : buffer.primaryBuffer;
+
+    const visibleLines: Array<{ lineIndex: number; lineText: string }> = [];
+    const startRow = Math.max(0, currentBuffer.scrollTop);
+    const endRow = Math.min(
+      currentBuffer.lines.length,
+      startRow + buffer.size.rows,
+    );
+
+    for (let row = startRow; row < endRow; row++) {
+      if (row < currentBuffer.lines.length) {
+        const line = currentBuffer.lines[row];
+        const lineText = line.characters.map((char) => char.char).join("");
+        visibleLines.push({ lineIndex: row, lineText });
+      } else {
+        visibleLines.push({ lineIndex: -1, lineText: "" });
+      }
     }
 
     return visibleLines;
