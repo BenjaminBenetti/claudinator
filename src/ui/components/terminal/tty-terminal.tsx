@@ -1,8 +1,8 @@
 import React, { useMemo } from "react";
 import { Box, Text } from "ink";
-import type { ITTYService } from "../../tty/service/tty-service.ts";
+import type { ITTYService } from "../../../tty/service/tty-service.ts";
 import { TerminalLine } from "./terminal-line.tsx";
-import { logger } from "../../logger/logger.ts";
+import { logger } from "../../../logger/logger.ts";
 
 /**
  * Props for the TTY Terminal component.

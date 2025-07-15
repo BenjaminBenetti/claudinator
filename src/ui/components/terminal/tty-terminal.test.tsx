@@ -2,8 +2,8 @@ import React from "react";
 import { assertEquals } from "@std/assert";
 import TestRenderer from "react-test-renderer";
 import { TTYTerminal } from "./tty-terminal.tsx";
-import { createTTYService } from "../../tty/service/tty-service.ts";
-import type { ITTYService } from "../../tty/service/tty-service.ts";
+import { createTTYService } from "../../../tty/service/tty-service.ts";
+import type { ITTYService } from "../../../tty/service/tty-service.ts";
 
 // Test helper to create a mock TTY service with data
 function createMockTTYServiceWithData(

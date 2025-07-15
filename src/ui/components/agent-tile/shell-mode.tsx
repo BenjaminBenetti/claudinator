@@ -8,7 +8,7 @@ import type {
 import type { TerminalState } from "../../../ssh/models/terminal-state-model.ts";
 import type { ISSHConnectionService } from "../../../ssh/service/ssh-connection-service.ts";
 import type { ITerminalService } from "../../../ssh/service/terminal-service.ts";
-import { TTYTerminal } from "../tty-terminal.tsx";
+import { TTYTerminal } from "../terminal/tty-terminal.tsx";
 import { logger } from "../../../logger/logger.ts";
 
 interface ShellModeProps extends AgentTileProps {
