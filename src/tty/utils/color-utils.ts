@@ -2,7 +2,7 @@
  * Color utility functions for terminal rendering.
  */
 
-import { BASIC_COLORS } from "../../tty/models/ansi-sequence-model.ts";
+import { BASIC_COLORS } from "../models/ansi-sequence-model.ts";
 
 /**
  * Converts a color code to an Ink-compatible color string.

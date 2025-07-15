@@ -5,7 +5,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import type { TTYBuffer } from "../../tty/models/tty-buffer-model.ts";
-import { convertColorCode } from "../utils/color-utils.ts";
+import { convertColorCode } from "../../tty/utils/color-utils.ts";
 
 interface TerminalLineProps {
   /** The line text content */
