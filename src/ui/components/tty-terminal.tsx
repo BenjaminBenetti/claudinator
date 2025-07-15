@@ -3,6 +3,7 @@ import { Box, Text } from "ink";
 import type { ITTYService } from "../../tty/service/tty-service.ts";
 import type { TTYBuffer } from "../../tty/models/tty-buffer-model.ts";
 import { BASIC_COLORS } from "../../tty/models/ansi-sequence-model.ts";
+import { logger } from "../../logger/logger.ts";
 
 /**
  * Props for the TTY Terminal component.
@@ -32,7 +33,7 @@ export interface TTYTerminalProps {
  * @param colorCode - ANSI color code (0-7 for basic colors)
  * @returns Ink color string or undefined for default
  */
-function convertColorCode(colorCode: number | undefined): string | undefined {
+function convertColorCode(colorCode: number | [number, number, number] | undefined): string | undefined {
   if (colorCode === undefined) return undefined;
 
   switch (colorCode) {
@@ -88,11 +89,11 @@ export const TTYTerminal: React.FC<TTYTerminalProps> = ({
     try {
       const lines = ttyService.getVisibleLines(sessionId);
 
-      // Apply maxLines limit if specified
+      //Apply maxLines limit if specified
       if (maxLines && lines.length > maxLines) {
         return lines.slice(-maxLines);
       }
-
+      
       return lines;
     } catch (error) {
       console.error("Failed to get visible lines:", error);
@@ -103,7 +104,7 @@ export const TTYTerminal: React.FC<TTYTerminalProps> = ({
   // Get terminal buffer for detailed character rendering
   const terminalBuffer = useMemo(() => {
     return ttyBuffer;
-  }, [ttyBuffer]);
+  }, [ttyBuffer]) as TTYBuffer;
 
   // Render individual characters with their attributes
   const renderLineWithAttributes = (lineIndex: number, lineText: string) => {
@@ -221,18 +222,6 @@ export const TTYTerminal: React.FC<TTYTerminalProps> = ({
             </Text>
           )}
       </Box>
-
-      {/* Debug info (only show if focused and in development) */}
-      {isFocused && Deno.env.get("NODE_ENV") === "development" && (
-        <Box marginTop={1}>
-          <Text color="gray" dimColor>
-            Buffer: {ttyBuffer.size.cols}x{ttyBuffer.size.rows}{" "}
-            | Cursor: ({ttyBuffer.cursor.col}, {ttyBuffer.cursor.row}) | Lines:
-            {" "}
-            {visibleLines.length}
-          </Text>
-        </Box>
-      )}
     </Box>
   );
 };
