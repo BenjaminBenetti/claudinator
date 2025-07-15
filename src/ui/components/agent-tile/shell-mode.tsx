@@ -8,6 +8,7 @@ import type {
 import type { TerminalState } from "../../../ssh/models/terminal-state-model.ts";
 import type { ISSHConnectionService } from "../../../ssh/service/ssh-connection-service.ts";
 import type { ITerminalService } from "../../../ssh/service/terminal-service.ts";
+import { TTYTerminal } from "../tty-terminal.tsx";
 import { logger } from "../../../logger/logger.ts";
 
 interface ShellModeProps extends AgentTileProps {
@@ -82,8 +83,6 @@ export const ShellMode: React.FC<ShellModeProps> = ({
 
         setSSHSession(session);
         setConnectionStatus(session.status);
-
-      
 
         const termState = terminalService.createTerminalState(
           session.id,
@@ -289,6 +288,28 @@ export const ShellMode: React.FC<ShellModeProps> = ({
         </Text>
         {agent.codespaceDisplayName && (
           <Text color="gray" dimColor>({agent.codespaceDisplayName})</Text>
+        )}
+      </Box>
+
+      {/* Terminal output */}
+      <Box flexGrow={1} flexDirection="column" overflow="hidden">
+        {terminalState && connectionStatus === "connected" && terminalService &&
+          (
+            <TTYTerminal
+              ttyService={terminalService.getTTYService()}
+              sessionId={terminalState.sessionId}
+              showCursor={isFocused}
+              isFocused={isFocused}
+              width="100%"
+              height="100%"
+              enableScrolling={true}
+            />
+          )}
+        {connectionStatus === "connecting" && (
+          <Text color="yellow">Establishing connection...</Text>
+        )}
+        {connectionStatus === "error" && (
+          <Text color="red">{error || "Connection failed"}</Text>
         )}
       </Box>
 

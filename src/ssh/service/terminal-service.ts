@@ -7,6 +7,7 @@ import {
   DEFAULT_TERMINAL_SIZE,
 } from "../models/terminal-state-model.ts";
 import type { ISSHConnectionService } from "./ssh-connection-service.ts";
+import type { ITTYService } from "../../tty/service/tty-service.ts";
 import { logger } from "../../logger/logger.ts";
 
 /**
@@ -129,6 +130,13 @@ export interface ITerminalService {
     availableWidth: number,
     availableHeight: number,
   ): TerminalSize;
+
+  /**
+   * Gets the TTY service instance for advanced terminal processing.
+   *
+   * @returns TTY service instance
+   */
+  getTTYService(): ITTYService;
 }
 
 /**
@@ -137,7 +145,12 @@ export interface ITerminalService {
 export class TerminalService implements ITerminalService {
   private terminalStates = new Map<string, TerminalState>();
   private outputPumps = new Map<string, AbortController>();
-  private stateChangeCallbacks = new Map<string, TerminalStateChangeCallback>()
+  private stateChangeCallbacks = new Map<string, TerminalStateChangeCallback>();
+  private ttyService: ITTYService;
+
+  constructor(ttyService: ITTYService) {
+    this.ttyService = ttyService;
+  }
 
   createTerminalState(
     sessionId: string,
@@ -152,6 +165,26 @@ export class TerminalService implements ITerminalService {
 
     const state = createTerminalState(sessionId, terminalSize);
     this.terminalStates.set(sessionId, state);
+
+    // Create TTY buffer for processing ANSI sequences
+    this.ttyService.createTTYBuffer(
+      sessionId,
+      terminalSize.cols,
+      terminalSize.rows,
+      (bufferSessionId, ttyBuffer) => {
+        // Convert TTY buffer to terminal state lines
+        const visibleLines = this.ttyService.getVisibleLines(bufferSessionId);
+        const terminalState = this.terminalStates.get(bufferSessionId);
+        if (terminalState) {
+          terminalState.outputBuffer = visibleLines;
+          // Trigger callback if registered
+          const callback = this.stateChangeCallbacks.get(bufferSessionId);
+          if (callback) {
+            callback(bufferSessionId, terminalState);
+          }
+        }
+      },
+    );
 
     // Store the callback if provided
     if (onStateChange) {
@@ -177,21 +210,12 @@ export class TerminalService implements ITerminalService {
       );
     }
 
-    
+    // Process output through TTY service for ANSI sequence handling
+    this.ttyService.processOutput(sessionId, output);
 
-    // Check if we were at the bottom before updating
-    const wasAtBottom = this.isAtBottom(state);
-
-    // Use TTY service to process the output with enhanced line ending handling
-    const ttyConfig = {
-      maxBufferLines: state.maxBufferLines,
-      handleCarriageReturn: true,
-    };
-
-    // Auto-scroll to bottom if we were at the bottom before the update
-    if (wasAtBottom) {
-      this.scrollToBottom(state);
-    }
+    // Update terminal state with processed output
+    const visibleLines = this.ttyService.getVisibleLines(sessionId);
+    state.outputBuffer = visibleLines;
 
     this.terminalStates.set(sessionId, state);
 
@@ -240,7 +264,10 @@ export class TerminalService implements ITerminalService {
           const state = this.terminalStates.get(sessionId);
           if (state) {
             const lastLines = state.outputBuffer.slice(-12);
-            logger.debug(`Last 12 lines in buffer for session ${sessionId}:`, lastLines);
+            logger.debug(
+              `Last 12 lines in buffer for session ${sessionId}:`,
+              lastLines,
+            );
           }
         }
       } catch (error) {
@@ -269,6 +296,9 @@ export class TerminalService implements ITerminalService {
 
     state.cols = size.cols;
     state.rows = size.rows;
+
+    // Update TTY buffer size
+    this.ttyService.resizeTerminal(sessionId, size.cols, size.rows);
 
     // Adjust scroll position if needed
     this.adjustScrollPosition(state);
@@ -348,6 +378,10 @@ export class TerminalService implements ITerminalService {
       );
     }
 
+    // Clear TTY buffer
+    this.ttyService.clearBuffer(sessionId);
+
+    // Update terminal state
     state.outputBuffer = [];
     state.scrollPosition = 0;
     this.terminalStates.set(sessionId, state);
@@ -364,7 +398,10 @@ export class TerminalService implements ITerminalService {
       this.outputPumps.delete(sessionId);
     }
 
-    // Clean up state, callback, and TTY service
+    // Clean up TTY buffer
+    this.ttyService.removeTTYBuffer(sessionId);
+
+    // Clean up state and callback
     this.terminalStates.delete(sessionId);
     this.stateChangeCallbacks.delete(sessionId);
 
@@ -412,13 +449,20 @@ export class TerminalService implements ITerminalService {
     const maxScroll = Math.max(0, state.outputBuffer.length - state.rows);
     state.scrollPosition = Math.min(state.scrollPosition, maxScroll);
   }
+
+  getTTYService(): ITTYService {
+    return this.ttyService;
+  }
 }
 
 /**
  * Factory function to create a terminal service.
  *
+ * @param ttyService - TTY service for processing ANSI sequences
  * @returns New terminal service instance
  */
-export function createTerminalService(): ITerminalService {
-  return new TerminalService();
+export function createTerminalService(
+  ttyService: ITTYService,
+): ITerminalService {
+  return new TerminalService(ttyService);
 }

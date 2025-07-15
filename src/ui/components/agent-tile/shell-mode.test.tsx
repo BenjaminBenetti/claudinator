@@ -79,7 +79,6 @@ class MockTerminalService implements ITerminalService {
   createTerminalState(
     sessionId: string,
     _sshConnectionService: any,
-    _ttyService: ITTYService,
     size?: TerminalSize,
     _onStateChange?: any,
   ): TerminalState {
@@ -152,6 +151,14 @@ class MockTerminalService implements ITerminalService {
     return {
       cols: Math.max(1, Math.floor(availableWidth)),
       rows: Math.max(1, Math.floor(availableHeight)),
+    };
+  }
+
+  getTTYService(): any {
+    // Mock TTY service - return a simple mock
+    return {
+      getTTYBuffer: () => undefined,
+      getVisibleLines: () => ["Mock TTY output"],
     };
   }
 }

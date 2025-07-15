@@ -4,6 +4,7 @@ import type { ISSHSessionRepo } from "../repo/ssh-session-repo.ts";
 import { createSSHConnectionService } from "./ssh-connection-service.ts";
 import { createTerminalService } from "./terminal-service.ts";
 import { createSSHSessionRepo } from "../repo/ssh-session-repo.ts";
+import { createTTYService } from "../../tty/service/tty-service.ts";
 
 /**
  * Configuration options for SSH services.
@@ -36,9 +37,11 @@ export function createSSHServices(config?: SSHServiceConfig): SSHServices {
   // Create repository (no dependencies)
   const sessionRepo = createSSHSessionRepo();
 
+  // Create TTY service for ANSI sequence processing
+  const ttyService = createTTYService();
 
-  // Create terminal service (no dependencies)
-  const terminalService = createTerminalService();
+  // Create terminal service with TTY service dependency
+  const terminalService = createTerminalService(ttyService);
 
   // Create connection service with optional timeout
   const connectionService = createSSHConnectionService(
