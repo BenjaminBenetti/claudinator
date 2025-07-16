@@ -37,9 +37,16 @@ function shouldShowCursor(
   ttyBuffer: TTYBuffer,
   bufferLineIndex: number,
 ): boolean {
+  const currentBuffer = ttyBuffer.useAlternateBuffer
+    ? ttyBuffer.alternateBuffer
+    : ttyBuffer.primaryBuffer;
+  
+  // Convert cursor position to absolute buffer position
+  const absoluteCursorRow = currentBuffer.scrollTop + ttyBuffer.cursor.row;
+  
   return showCursor &&
     ttyBuffer.cursor.visible &&
-    bufferLineIndex === ttyBuffer.cursor.row;
+    bufferLineIndex === absoluteCursorRow;
 }
 
 /**
@@ -50,7 +57,7 @@ export const TerminalLine: React.FC<TerminalLineProps> = ({
   bufferLineIndex,
   ttyBuffer,
   showCursor = false,
-  isFocused = false,
+  isFocused: _isFocused = false,
 }) => {
   // Handle empty lines or invalid buffer indices
   if (bufferLineIndex === -1 || !ttyBuffer) {
@@ -66,7 +73,7 @@ export const TerminalLine: React.FC<TerminalLineProps> = ({
   }
 
   // Render each character with its individual attributes
-  const renderedChars = lineData.characters.map((termChar, charIndex) => {
+  const renderedChars = lineData.characters.map((termChar, _charIndex) => {
     const color = convertColorCode(termChar.attributes.foregroundColor);
     const backgroundColor = convertColorCode(termChar.attributes.backgroundColor);
 

@@ -1,4 +1,4 @@
-import type { TextAttributes } from "../models/ansi-sequence-model.ts";
+import type { TextAttributes as _TextAttributes } from "../models/ansi-sequence-model.ts";
 import {
   createDefaultTextAttributes,
   SGR_CODES,
@@ -211,6 +211,7 @@ export class TTYService implements ITTYService {
     const currentBuffer = buffer.useAlternateBuffer
       ? buffer.alternateBuffer
       : buffer.primaryBuffer;
+
 
     const visibleLines: string[] = [];
     const startRow = Math.max(0, currentBuffer.scrollTop);
@@ -451,12 +452,15 @@ export class TTYService implements ITTYService {
       ? buffer.alternateBuffer
       : buffer.primaryBuffer;
 
+    // Convert cursor position to absolute buffer position
+    const absoluteRow = currentBuffer.scrollTop + buffer.cursor.row;
+
     // Ensure we have enough lines
-    while (currentBuffer.lines.length <= buffer.cursor.row) {
+    while (currentBuffer.lines.length <= absoluteRow) {
       currentBuffer.lines.push(createTerminalLine());
     }
 
-    const line = currentBuffer.lines[buffer.cursor.row];
+    const line = currentBuffer.lines[absoluteRow];
 
     // Ensure line has enough characters
     while (line.characters.length <= buffer.cursor.col) {
@@ -501,9 +505,19 @@ export class TTYService implements ITTYService {
 
     // If we're past the bottom of the screen, scroll
     if (buffer.cursor.row >= buffer.size.rows) {
+      // Calculate absolute position where new line should be added
+      const absoluteRow = currentBuffer.scrollTop + buffer.cursor.row;
       
-      // Add a new line and scroll if needed
-      currentBuffer.lines.push(createTerminalLine());
+      // Ensure we have enough lines up to this position
+      while (currentBuffer.lines.length <= absoluteRow) {
+        currentBuffer.lines.push(createTerminalLine());
+      }
+
+      // Move cursor back to bottom of visible area
+      buffer.cursor.row = buffer.size.rows - 1;
+      
+      // Scroll down by one line to show new content
+      currentBuffer.scrollTop++;
 
       // Trim buffer if it's too large
       if (currentBuffer.lines.length > currentBuffer.maxLines) {
@@ -511,14 +525,8 @@ export class TTYService implements ITTYService {
           BUFFER_LIMITS.TRIM_TO_LINES;
         currentBuffer.lines.splice(0, removeCount);
         currentBuffer.scrolledOffLines += removeCount;
+        currentBuffer.scrollTop = Math.max(0, currentBuffer.scrollTop - removeCount);
       }
-
-      // Adjust scroll position to show new content
-      const maxScroll = Math.max(
-        0,
-        currentBuffer.lines.length - buffer.size.rows,
-      );
-      currentBuffer.scrollTop = maxScroll;
     }
   }
 
@@ -542,13 +550,14 @@ export class TTYService implements ITTYService {
     logger.debug(`Processing CSI sequence: ${sequence}`);
 
     // deno-lint-ignore no-control-regex
-    const match = sequence.match(/^\x1b\[(\d*(;\d*)*)([A-Za-z])/);
+    const match = sequence.match(/^\x1b\[([?!]?)([0-9;:]*)([A-Za-z])/);
     if (!match) {
       logger.debug(`Invalid CSI sequence: ${sequence}`);
       return;
     }
 
-    const paramsStr = match[1];
+    const prefix = match[1];
+    const paramsStr = match[2];
     const command = match[3];
     const params = paramsStr ? paramsStr.split(";").map(Number) : [];
 
@@ -586,6 +595,18 @@ export class TTYService implements ITTYService {
           buffer.cursor = { ...buffer.savedCursor };
         }
         break;
+      case "G": // Cursor Horizontal Absolute (CHA)
+        this.setCursorColumn(buffer, params[0] || 1);
+        break;
+      case "l": // Reset Mode (RM)
+        this.resetMode(buffer, prefix, params);
+        break;
+      case "h": // Set Mode (SM)
+        this.setMode(buffer, prefix, params);
+        break;
+      case "p": // Soft terminal reset or other functions
+        this.handlePCommand(buffer, prefix, params);
+        break;
       default:
         logger.debug(`Unsupported CSI command: ${command}`);
         break;
@@ -602,8 +623,20 @@ export class TTYService implements ITTYService {
     const row = Math.max(0, (params[0] || 1) - 1);
     const col = Math.max(0, (params[1] || 1) - 1);
 
-    buffer.cursor.row = Math.min(row, buffer.size.rows - 1);
-    buffer.cursor.col = Math.min(col, buffer.size.cols - 1);
+    // Cursor position is relative to the visible area (not absolute buffer position)
+    buffer.cursor.row = row;
+    buffer.cursor.col = col;
+  }
+
+  /**
+   * Sets cursor column from CSI G command (Cursor Horizontal Absolute).
+   *
+   * @param buffer - TTY buffer to update
+   * @param column - Column position (1-based)
+   */
+  private setCursorColumn(buffer: TTYBuffer, column: number): void {
+    const col = Math.max(0, column - 1); // Convert from 1-based to 0-based
+    buffer.cursor.col = col;
   }
 
   /**
@@ -618,6 +651,10 @@ export class TTYService implements ITTYService {
     deltaCol: number,
     deltaRow: number,
   ): void {
+    const currentBuffer = buffer.useAlternateBuffer
+      ? buffer.alternateBuffer
+      : buffer.primaryBuffer;
+
     buffer.cursor.col = Math.max(
       0,
       Math.min(
@@ -625,13 +662,16 @@ export class TTYService implements ITTYService {
         buffer.cursor.col + deltaCol,
       ),
     );
-    buffer.cursor.row = Math.max(
-      0,
-      Math.min(
-        buffer.size.rows - 1,
-        buffer.cursor.row + deltaRow,
-      ),
-    );
+    
+    buffer.cursor.row = Math.max(0, buffer.cursor.row + deltaRow);
+
+    // Only adjust scroll if cursor moves below the visible area (normal terminal behavior)
+    // Don't auto-scroll when cursor moves above - let content stay where it was written
+    if (buffer.cursor.row >= buffer.size.rows) {
+      // Cursor moved below visible area - scroll down to follow
+      const absoluteCursorRow = currentBuffer.scrollTop + buffer.cursor.row;
+      currentBuffer.scrollTop = Math.max(0, absoluteCursorRow - buffer.size.rows + 1);
+    }
   }
 
   /**
@@ -645,11 +685,15 @@ export class TTYService implements ITTYService {
       ? buffer.alternateBuffer
       : buffer.primaryBuffer;
 
-    if (buffer.cursor.row >= currentBuffer.lines.length) {
-      return;
+    // Convert cursor position to absolute buffer position
+    const absoluteRow = currentBuffer.scrollTop + buffer.cursor.row;
+
+    // Ensure we have enough lines up to the cursor position
+    while (currentBuffer.lines.length <= absoluteRow) {
+      currentBuffer.lines.push(createTerminalLine());
     }
 
-    const line = currentBuffer.lines[buffer.cursor.row];
+    const line = currentBuffer.lines[absoluteRow];
     const emptyChar = createTerminalCharacter(
       " ",
       createDefaultTextAttributes(),
@@ -790,15 +834,18 @@ export class TTYService implements ITTYService {
     buffer: TTYBuffer,
     currentBuffer: ScreenBuffer,
   ): void {
+    // Convert cursor position to absolute buffer position
+    const absoluteRow = currentBuffer.scrollTop + buffer.cursor.row;
+
     // Clear from cursor to end of current line
-    if (buffer.cursor.row < currentBuffer.lines.length) {
-      const line = currentBuffer.lines[buffer.cursor.row];
+    if (absoluteRow < currentBuffer.lines.length) {
+      const line = currentBuffer.lines[absoluteRow];
       line.characters.splice(buffer.cursor.col);
     }
 
     // Clear all lines below cursor
-    if (buffer.cursor.row + 1 < currentBuffer.lines.length) {
-      currentBuffer.lines.splice(buffer.cursor.row + 1);
+    if (absoluteRow + 1 < currentBuffer.lines.length) {
+      currentBuffer.lines.splice(absoluteRow + 1);
     }
   }
 
@@ -814,24 +861,161 @@ export class TTYService implements ITTYService {
       createDefaultTextAttributes(),
     );
 
-    // Clear all lines above cursor
+    // Convert cursor position to absolute buffer position
+    const absoluteRow = currentBuffer.scrollTop + buffer.cursor.row;
+
+    // Clear all lines above cursor in the visible area
     for (
-      let row = 0;
-      row < buffer.cursor.row && row < currentBuffer.lines.length;
+      let row = currentBuffer.scrollTop;
+      row < absoluteRow && row < currentBuffer.lines.length;
       row++
     ) {
       currentBuffer.lines[row].characters = [];
     }
 
     // Clear from start of current line to cursor
-    if (buffer.cursor.row < currentBuffer.lines.length) {
-      const line = currentBuffer.lines[buffer.cursor.row];
+    if (absoluteRow < currentBuffer.lines.length) {
+      const line = currentBuffer.lines[absoluteRow];
       for (let col = 0; col <= buffer.cursor.col; col++) {
         if (col < line.characters.length) {
           line.characters[col] = emptyChar;
         }
       }
     }
+  }
+
+  /**
+   * Handles CSI Reset Mode (RM) commands.
+   *
+   * @param buffer - TTY buffer
+   * @param prefix - CSI prefix (? for private modes)
+   * @param params - Mode parameters
+   */
+  private resetMode(buffer: TTYBuffer, prefix: string, params: number[]): void {
+    if (prefix === "?") {
+      // Private mode reset
+      for (const param of params) {
+        switch (param) {
+          case 2004: // Bracketed paste mode
+            // Disable bracketed paste mode (most terminals ignore this)
+            break;
+          case 3: // 80/132 column mode
+            // Reset to 80 columns (we'll ignore this)
+            break;
+          case 4: // Smooth scrolling
+            // Reset smooth scrolling (we'll ignore this)  
+            break;
+          case 69: // Left/right margin mode
+            // Reset margins (we'll ignore this)
+            break;
+          default:
+            logger.debug(`Unsupported private mode reset: ${param}`);
+            break;
+        }
+      }
+    } else {
+      // Standard mode reset
+      for (const param of params) {
+        switch (param) {
+          case 4: // Insert mode
+            buffer.modes.insertMode = false;
+            break;
+          default:
+            logger.debug(`Unsupported mode reset: ${param}`);
+            break;
+        }
+      }
+    }
+  }
+
+  /**
+   * Handles CSI Set Mode (SM) commands.
+   *
+   * @param buffer - TTY buffer
+   * @param prefix - CSI prefix (? for private modes)
+   * @param params - Mode parameters
+   */
+  private setMode(buffer: TTYBuffer, prefix: string, params: number[]): void {
+    if (prefix === "?") {
+      // Private mode set
+      for (const param of params) {
+        switch (param) {
+          case 2004: // Bracketed paste mode
+            // Enable bracketed paste mode (most terminals ignore this)
+            break;
+          case 3: // 80/132 column mode
+            // Set to 132 columns (we'll ignore this)
+            break;
+          case 4: // Smooth scrolling
+            // Set smooth scrolling (we'll ignore this)
+            break;
+          case 69: // Left/right margin mode
+            // Set margins (we'll ignore this)
+            break;
+          default:
+            logger.debug(`Unsupported private mode set: ${param}`);
+            break;
+        }
+      }
+    } else {
+      // Standard mode set
+      for (const param of params) {
+        switch (param) {
+          case 4: // Insert mode
+            buffer.modes.insertMode = true;
+            break;
+          default:
+            logger.debug(`Unsupported mode set: ${param}`);
+            break;
+        }
+      }
+    }
+  }
+
+  /**
+   * Handles CSI p commands.
+   *
+   * @param buffer - TTY buffer
+   * @param prefix - CSI prefix (! for soft reset)
+   * @param params - Command parameters
+   */
+  private handlePCommand(buffer: TTYBuffer, prefix: string, _params: number[]): void {
+    if (prefix === "!") {
+      // Soft terminal reset
+      this.softReset(buffer);
+    } else {
+      logger.debug(`Unsupported p command with prefix: ${prefix}`);
+    }
+  }
+
+  /**
+   * Performs a soft terminal reset.
+   *
+   * @param buffer - TTY buffer
+   */
+  private softReset(buffer: TTYBuffer): void {
+    // Reset cursor position
+    buffer.cursor.row = 0;
+    buffer.cursor.col = 0;
+    
+    // Reset scroll position
+    const currentBuffer = buffer.useAlternateBuffer
+      ? buffer.alternateBuffer
+      : buffer.primaryBuffer;
+    currentBuffer.scrollTop = 0;
+    currentBuffer.lines = [];
+    
+    // Reset text attributes
+    buffer.currentAttributes = createDefaultTextAttributes();
+    
+    // Reset modes
+    buffer.modes.insertMode = false;
+    buffer.modes.autowrap = true;
+    
+    // Clear saved cursor
+    buffer.savedCursor = undefined;
+    
+    logger.debug(`Soft reset performed for session ${buffer.sessionId}`);
   }
 }
 
