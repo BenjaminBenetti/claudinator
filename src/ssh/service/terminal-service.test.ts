@@ -88,6 +88,11 @@ class MockTTYService implements ITTYService {
     this.buffers.delete(sessionId);
     this.callbacks.delete(sessionId);
   }
+
+  getVisibleLinesWithIndices(sessionId: string): Array<{ lineIndex: number; lineText: string }> {
+    const lines = this.getVisibleLines(sessionId);
+    return lines.map((lineText, index) => ({ lineIndex: index, lineText }));
+  }
 }
 
 // Mock SSH Connection Service for testing

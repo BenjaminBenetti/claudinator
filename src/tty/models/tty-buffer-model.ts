@@ -88,6 +88,13 @@ export interface TTYBuffer {
     /** Local echo mode */
     localEcho: boolean;
   };
+  /** Scroll region boundaries (1-based rows, null means no scroll region) */
+  scrollRegion: {
+    /** Top line of scroll region (1-based) */
+    top: number;
+    /** Bottom line of scroll region (1-based) */
+    bottom: number;
+  } | null;
   /** Last time the buffer was updated */
   lastUpdated: Date;
 }
@@ -203,6 +210,7 @@ export function createTTYBuffer(
       insertMode: false,
       localEcho: true,
     },
+    scrollRegion: null,
     lastUpdated: new Date(),
   };
 }

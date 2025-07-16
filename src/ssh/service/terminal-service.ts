@@ -211,11 +211,8 @@ export class TerminalService implements ITerminalService {
     }
 
     // Process output through TTY service for ANSI sequence handling
+    // TTY service now handles all output buffer management and scrolling
     this.ttyService.processOutput(sessionId, output);
-
-    // Update terminal state with processed output
-    const visibleLines = this.ttyService.getVisibleLines(sessionId);
-    state.outputBuffer = visibleLines;
 
     this.terminalStates.set(sessionId, state);
 
@@ -298,64 +295,31 @@ export class TerminalService implements ITerminalService {
   }
 
   scrollUp(sessionId: string, lines: number): void {
-    const state = this.terminalStates.get(sessionId);
-    if (!state) {
-      throw new TerminalServiceError(
-        `Terminal state not found for session: ${sessionId}`,
-        sessionId,
-      );
-    }
-
-    state.scrollPosition = Math.max(0, state.scrollPosition - lines);
-    this.terminalStates.set(sessionId, state);
+    // Delegate all scrolling to TTY service - it handles coordinates properly
+    // SSH service should not manage its own scroll state
+    // TODO: Implement scroll methods in TTY service and delegate here
+    logger.warn(`scrollUp not yet implemented - TTY service should handle scrolling`);
   }
 
   scrollDown(sessionId: string, lines: number): void {
-    const state = this.terminalStates.get(sessionId);
-    if (!state) {
-      throw new TerminalServiceError(
-        `Terminal state not found for session: ${sessionId}`,
-        sessionId,
-      );
-    }
-
-    const maxScroll = Math.max(0, state.outputBuffer.length - state.rows);
-    state.scrollPosition = Math.min(maxScroll, state.scrollPosition + lines);
-    this.terminalStates.set(sessionId, state);
+    // Delegate all scrolling to TTY service - it handles coordinates properly  
+    // SSH service should not manage its own scroll state
+    // TODO: Implement scroll methods in TTY service and delegate here
+    logger.warn(`scrollDown not yet implemented - TTY service should handle scrolling`);
   }
 
   getVisibleLines(sessionId: string): string[] {
-    const state = this.terminalStates.get(sessionId);
-    if (!state) {
-      logger.error(
-        `Terminal state not found for getVisibleLines: ${sessionId}`,
-      );
-      logger.error(
-        "Active Sessions:" +
-          Array.from(this.terminalStates.values()).map((state) =>
-            state.sessionId
-          ).join(", "),
-      );
+    // Delegate to TTY service instead of managing our own scroll position
+    // This eliminates the double scroll management conflict
+    try {
+      return this.ttyService.getVisibleLines(sessionId);
+    } catch (error) {
+      logger.error(`Failed to get visible lines from TTY service: ${error}`);
       throw new TerminalServiceError(
-        `Terminal state not found for session: ${sessionId}`,
+        `Failed to get visible lines for session: ${sessionId}`,
         sessionId,
       );
     }
-
-    const startIndex = state.scrollPosition;
-    const endIndex = Math.min(
-      state.outputBuffer.length,
-      startIndex + state.rows,
-    );
-
-    const visibleLines = state.outputBuffer.slice(startIndex, endIndex);
-
-    // Pad with empty lines if needed to fill the terminal height
-    while (visibleLines.length < state.rows) {
-      visibleLines.push("");
-    }
-
-    return visibleLines;
   }
 
   clearBuffer(sessionId: string): void {
@@ -369,12 +333,9 @@ export class TerminalService implements ITerminalService {
       );
     }
 
-    // Clear TTY buffer
+    // Delegate buffer clearing to TTY service - no need to manage our own state
     this.ttyService.clearBuffer(sessionId);
-
-    // Update terminal state
-    state.outputBuffer = [];
-    state.scrollPosition = 0;
+    
     this.terminalStates.set(sessionId, state);
   }
 
@@ -412,33 +373,37 @@ export class TerminalService implements ITerminalService {
 
   /**
    * Checks if the terminal is scrolled to the bottom.
+   * Delegates to TTY service since we no longer manage scroll position.
    *
-   * @param state - Terminal state to check
+   * @param state - Terminal state (scroll position handled by TTY service)
    * @returns True if at bottom, false otherwise
    */
   private isAtBottom(state: TerminalState): boolean {
-    const maxScroll = Math.max(0, state.outputBuffer.length - state.rows);
-    return state.scrollPosition >= maxScroll;
+    // TODO: Implement scroll position checking in TTY service
+    // For now, assume we're at bottom (auto-scroll behavior)
+    return true;
   }
 
   /**
    * Scrolls the terminal to the bottom.
+   * Delegates to TTY service since we no longer manage scroll position.
    *
-   * @param state - Terminal state to modify
+   * @param state - Terminal state (scroll position handled by TTY service)
    */
   private scrollToBottom(state: TerminalState): void {
-    const maxScroll = Math.max(0, state.outputBuffer.length - state.rows);
-    state.scrollPosition = maxScroll;
+    // TODO: Implement scroll to bottom in TTY service
+    // For now, no-op since TTY service handles scroll position
   }
 
   /**
    * Adjusts scroll position after terminal resize.
+   * Delegates to TTY service since we no longer manage scroll position.
    *
-   * @param state - Terminal state to adjust
+   * @param state - Terminal state (scroll position handled by TTY service)
    */
   private adjustScrollPosition(state: TerminalState): void {
-    const maxScroll = Math.max(0, state.outputBuffer.length - state.rows);
-    state.scrollPosition = Math.min(state.scrollPosition, maxScroll);
+    // TTY service handles scroll position adjustments during resize
+    // No action needed here
   }
 
   getTTYService(): ITTYService {

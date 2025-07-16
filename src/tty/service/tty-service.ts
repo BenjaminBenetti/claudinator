@@ -503,29 +503,43 @@ export class TTYService implements ITTYService {
       ? buffer.alternateBuffer
       : buffer.primaryBuffer;
 
-    // If we're past the bottom of the screen, scroll
-    if (buffer.cursor.row >= buffer.size.rows) {
-      // Calculate absolute position where new line should be added
-      const absoluteRow = currentBuffer.scrollTop + buffer.cursor.row;
+    // Check if we have a scroll region defined
+    if (buffer.scrollRegion) {
+      const scrollBottom = buffer.scrollRegion.bottom - 1; // Convert to 0-based
       
-      // Ensure we have enough lines up to this position
-      while (currentBuffer.lines.length <= absoluteRow) {
-        currentBuffer.lines.push(createTerminalLine());
+      // If cursor moves beyond the scroll region bottom, scroll within the region
+      if (buffer.cursor.row > scrollBottom) {
+        buffer.cursor.row = scrollBottom;
+        this.scrollWithinRegion(buffer, 1); // Scroll down by 1 line
       }
+    } else {
+      // No scroll region - use traditional screen scrolling
+      if (buffer.cursor.row >= buffer.size.rows) {
+        // Calculate how many lines to scroll
+        const scrollAmount = buffer.cursor.row - buffer.size.rows + 1;
+        
+        // Calculate where the new content should be added in absolute terms
+        const newAbsoluteRow = currentBuffer.scrollTop + buffer.size.rows - 1 + scrollAmount;
+        
+        // Ensure we have enough lines up to this position
+        while (currentBuffer.lines.length <= newAbsoluteRow) {
+          currentBuffer.lines.push(createTerminalLine());
+        }
 
-      // Move cursor back to bottom of visible area
-      buffer.cursor.row = buffer.size.rows - 1;
-      
-      // Scroll down by one line to show new content
-      currentBuffer.scrollTop++;
+        // Move cursor back to bottom of visible area
+        buffer.cursor.row = buffer.size.rows - 1;
+        
+        // Scroll down to show new content
+        currentBuffer.scrollTop += scrollAmount;
 
-      // Trim buffer if it's too large
-      if (currentBuffer.lines.length > currentBuffer.maxLines) {
-        const removeCount = currentBuffer.lines.length -
-          BUFFER_LIMITS.TRIM_TO_LINES;
-        currentBuffer.lines.splice(0, removeCount);
-        currentBuffer.scrolledOffLines += removeCount;
-        currentBuffer.scrollTop = Math.max(0, currentBuffer.scrollTop - removeCount);
+        // Trim buffer if it's too large
+        if (currentBuffer.lines.length > currentBuffer.maxLines) {
+          const removeCount = currentBuffer.lines.length -
+            BUFFER_LIMITS.TRIM_TO_LINES;
+          currentBuffer.lines.splice(0, removeCount);
+          currentBuffer.scrolledOffLines += removeCount;
+          currentBuffer.scrollTop = Math.max(0, currentBuffer.scrollTop - removeCount);
+        }
       }
     }
   }
@@ -550,7 +564,7 @@ export class TTYService implements ITTYService {
     logger.debug(`Processing CSI sequence: ${sequence}`);
 
     // deno-lint-ignore no-control-regex
-    const match = sequence.match(/^\x1b\[([?!]?)([0-9;:]*)([A-Za-z])/);
+    const match = sequence.match(/^\x1b\[([?!]?)([0-9;:]*)(.)/);
     if (!match) {
       logger.debug(`Invalid CSI sequence: ${sequence}`);
       return;
@@ -559,6 +573,14 @@ export class TTYService implements ITTYService {
     const prefix = match[1];
     const paramsStr = match[2];
     const command = match[3];
+    
+    // Validate that the command character is a valid CSI final character (0x40-0x7E)
+    const commandCode = command.charCodeAt(0);
+    if (commandCode < 0x40 || commandCode > 0x7E) {
+      logger.debug(`Invalid CSI final character: ${command} (code: ${commandCode})`);
+      return;
+    }
+    
     const params = paramsStr ? paramsStr.split(";").map(Number) : [];
 
     switch (command) {
@@ -592,7 +614,12 @@ export class TTYService implements ITTYService {
         break;
       case "u": // Restore cursor position
         if (buffer.savedCursor) {
-          buffer.cursor = { ...buffer.savedCursor };
+          // Validate saved cursor position against current terminal size
+          buffer.cursor = {
+            row: Math.max(0, Math.min(buffer.savedCursor.row, buffer.size.rows - 1)),
+            col: Math.max(0, Math.min(buffer.savedCursor.col, buffer.size.cols - 1)),
+            visible: buffer.savedCursor.visible,
+          };
         }
         break;
       case "G": // Cursor Horizontal Absolute (CHA)
@@ -606,6 +633,15 @@ export class TTYService implements ITTYService {
         break;
       case "p": // Soft terminal reset or other functions
         this.handlePCommand(buffer, prefix, params);
+        break;
+      case "r": // Set scrolling region (DECSTBM)
+        this.setScrollRegion(buffer, params);
+        break;
+      case "L": // Insert Line (IL)
+        this.insertLines(buffer, params[0] || 1);
+        break;
+      case "M": // Delete Line (DL)
+        this.deleteLines(buffer, params[0] || 1);
         break;
       default:
         logger.debug(`Unsupported CSI command: ${command}`);
@@ -623,9 +659,20 @@ export class TTYService implements ITTYService {
     const row = Math.max(0, (params[0] || 1) - 1);
     const col = Math.max(0, (params[1] || 1) - 1);
 
-    // Cursor position is relative to the visible area (not absolute buffer position)
-    buffer.cursor.row = row;
-    buffer.cursor.col = col;
+    // When there's a scroll region, cursor positioning is relative to the scroll region
+    if (buffer.scrollRegion) {
+      const scrollTop = buffer.scrollRegion.top - 1; // Convert to 0-based
+      const scrollBottom = buffer.scrollRegion.bottom - 1; // Convert to 0-based
+      
+      // Position cursor relative to scroll region top
+      buffer.cursor.row = Math.min(scrollTop + row, scrollBottom);
+      buffer.cursor.col = Math.min(col, buffer.size.cols - 1);
+    } else {
+      // Cursor position is relative to the visible area (not absolute buffer position)
+      // Ensure cursor stays within viewport bounds
+      buffer.cursor.row = Math.min(row, buffer.size.rows - 1);
+      buffer.cursor.col = Math.min(col, buffer.size.cols - 1);
+    }
   }
 
   /**
@@ -636,7 +683,7 @@ export class TTYService implements ITTYService {
    */
   private setCursorColumn(buffer: TTYBuffer, column: number): void {
     const col = Math.max(0, column - 1); // Convert from 1-based to 0-based
-    buffer.cursor.col = col;
+    buffer.cursor.col = Math.min(col, buffer.size.cols - 1); // Ensure within viewport bounds
   }
 
   /**
@@ -655,6 +702,7 @@ export class TTYService implements ITTYService {
       ? buffer.alternateBuffer
       : buffer.primaryBuffer;
 
+    // Update column position
     buffer.cursor.col = Math.max(
       0,
       Math.min(
@@ -663,14 +711,26 @@ export class TTYService implements ITTYService {
       ),
     );
     
-    buffer.cursor.row = Math.max(0, buffer.cursor.row + deltaRow);
+    const newCursorRow = buffer.cursor.row + deltaRow;
 
-    // Only adjust scroll if cursor moves below the visible area (normal terminal behavior)
-    // Don't auto-scroll when cursor moves above - let content stay where it was written
-    if (buffer.cursor.row >= buffer.size.rows) {
-      // Cursor moved below visible area - scroll down to follow
-      const absoluteCursorRow = currentBuffer.scrollTop + buffer.cursor.row;
-      currentBuffer.scrollTop = Math.max(0, absoluteCursorRow - buffer.size.rows + 1);
+    // Handle row movement with scroll region consideration
+    if (buffer.scrollRegion) {
+      const scrollTop = buffer.scrollRegion.top - 1; // Convert to 0-based
+      const scrollBottom = buffer.scrollRegion.bottom - 1; // Convert to 0-based
+      
+      // Keep cursor within scroll region bounds
+      buffer.cursor.row = Math.max(scrollTop, Math.min(newCursorRow, scrollBottom));
+    } else {
+      // Only adjust scroll if cursor moves below the visible area (normal terminal behavior)
+      // Don't auto-scroll when cursor moves above - let content stay where it was written
+      if (newCursorRow >= buffer.size.rows) {
+        // Cursor moved below visible area - scroll down to follow
+        const scrollAmount = newCursorRow - buffer.size.rows + 1;
+        currentBuffer.scrollTop += scrollAmount;
+        buffer.cursor.row = buffer.size.rows - 1; // Keep cursor at bottom of viewport
+      } else {
+        buffer.cursor.row = Math.max(0, Math.min(newCursorRow, buffer.size.rows - 1));
+      }
     }
   }
 
@@ -989,6 +1049,198 @@ export class TTYService implements ITTYService {
   }
 
   /**
+   * Sets the scrolling region (DECSTBM).
+   *
+   * @param buffer - TTY buffer
+   * @param params - Top and bottom lines of scroll region (1-based)
+   */
+  private setScrollRegion(buffer: TTYBuffer, params: number[]): void {
+    const top = params[0] || 1;
+    const bottom = params[1] || buffer.size.rows;
+    
+    // Validate parameters
+    if (top >= 1 && bottom <= buffer.size.rows && top < bottom) {
+      buffer.scrollRegion = { top, bottom };
+      // Reset cursor to top-left of scroll region
+      buffer.cursor.row = 0;
+      buffer.cursor.col = 0;
+      logger.debug(`Set scroll region: lines ${top}-${bottom}`);
+    } else if (params.length === 0) {
+      // No parameters means reset to full screen
+      buffer.scrollRegion = null;
+      buffer.cursor.row = 0;
+      buffer.cursor.col = 0;
+      logger.debug(`Reset scroll region to full screen`);
+    } else {
+      logger.debug(`Invalid scroll region parameters: top=${top}, bottom=${bottom}`);
+    }
+  }
+
+  /**
+   * Scrolls content within the defined scroll region.
+   *
+   * @param buffer - TTY buffer
+   * @param lines - Number of lines to scroll (positive = scroll up, negative = scroll down)
+   */
+  private scrollWithinRegion(buffer: TTYBuffer, lines: number): void {
+    if (!buffer.scrollRegion) return;
+
+    const currentBuffer = buffer.useAlternateBuffer
+      ? buffer.alternateBuffer
+      : buffer.primaryBuffer;
+
+    const scrollTop = buffer.scrollRegion.top - 1; // Convert to 0-based
+    const scrollBottom = buffer.scrollRegion.bottom - 1; // Convert to 0-based
+    
+    // Calculate absolute positions in the buffer
+    const absoluteScrollTop = currentBuffer.scrollTop + scrollTop;
+    const absoluteScrollBottom = currentBuffer.scrollTop + scrollBottom;
+
+    // Ensure we have enough lines in the buffer
+    while (currentBuffer.lines.length <= absoluteScrollBottom) {
+      currentBuffer.lines.push(createTerminalLine());
+    }
+
+    if (lines > 0) {
+      // Scroll up (content moves up, new lines appear at bottom)
+      for (let i = 0; i < lines; i++) {
+        // Remove the top line of the scroll region
+        if (absoluteScrollTop < currentBuffer.lines.length) {
+          currentBuffer.lines.splice(absoluteScrollTop, 1);
+        }
+        // Add a new blank line at the bottom of the scroll region
+        currentBuffer.lines.splice(absoluteScrollBottom, 0, createTerminalLine());
+      }
+    } else if (lines < 0) {
+      // Scroll down (content moves down, new lines appear at top)
+      for (let i = 0; i < Math.abs(lines); i++) {
+        // Remove the bottom line of the scroll region
+        if (absoluteScrollBottom < currentBuffer.lines.length) {
+          currentBuffer.lines.splice(absoluteScrollBottom, 1);
+        }
+        // Add a new blank line at the top of the scroll region
+        currentBuffer.lines.splice(absoluteScrollTop, 0, createTerminalLine());
+      }
+    }
+
+    logger.debug(`Scrolled ${lines} lines within region ${buffer.scrollRegion.top}-${buffer.scrollRegion.bottom}`);
+  }
+
+  /**
+   * Inserts blank lines at the current cursor position.
+   * If in a scroll region, lines below are scrolled down within the region.
+   *
+   * @param buffer - TTY buffer
+   * @param count - Number of lines to insert
+   */
+  private insertLines(buffer: TTYBuffer, count: number): void {
+    const currentBuffer = buffer.useAlternateBuffer
+      ? buffer.alternateBuffer
+      : buffer.primaryBuffer;
+
+    if (buffer.scrollRegion) {
+      // Insert lines within scroll region
+      const scrollTop = buffer.scrollRegion.top - 1; // Convert to 0-based
+      const scrollBottom = buffer.scrollRegion.bottom - 1; // Convert to 0-based
+      
+      // Calculate absolute position where cursor is
+      const absoluteCursorRow = currentBuffer.scrollTop + buffer.cursor.row;
+      
+      // Only insert if cursor is within scroll region
+      if (buffer.cursor.row >= scrollTop && buffer.cursor.row <= scrollBottom) {
+        // Insert blank lines at cursor position
+        for (let i = 0; i < count; i++) {
+          currentBuffer.lines.splice(absoluteCursorRow, 0, createTerminalLine());
+        }
+        
+        // Calculate absolute bottom of scroll region
+        const absoluteScrollBottom = currentBuffer.scrollTop + scrollBottom;
+        
+        // Remove lines that were pushed past the bottom of the scroll region
+        while (currentBuffer.lines.length > absoluteScrollBottom + 1) {
+          currentBuffer.lines.splice(absoluteScrollBottom + 1, 1);
+        }
+        
+        logger.debug(`Inserted ${count} lines at cursor position within scroll region`);
+      }
+    } else {
+      // Insert lines in full screen mode
+      const absoluteCursorRow = currentBuffer.scrollTop + buffer.cursor.row;
+      
+      for (let i = 0; i < count; i++) {
+        currentBuffer.lines.splice(absoluteCursorRow, 0, createTerminalLine());
+      }
+      
+      // Remove lines that were pushed past the bottom of the screen
+      const maxLines = currentBuffer.scrollTop + buffer.size.rows;
+      while (currentBuffer.lines.length > maxLines) {
+        currentBuffer.lines.splice(maxLines, 1);
+      }
+      
+      logger.debug(`Inserted ${count} lines at cursor position`);
+    }
+  }
+
+  /**
+   * Deletes lines at the current cursor position.
+   * If in a scroll region, lines below are scrolled up within the region.
+   *
+   * @param buffer - TTY buffer
+   * @param count - Number of lines to delete
+   */
+  private deleteLines(buffer: TTYBuffer, count: number): void {
+    const currentBuffer = buffer.useAlternateBuffer
+      ? buffer.alternateBuffer
+      : buffer.primaryBuffer;
+
+    if (buffer.scrollRegion) {
+      // Delete lines within scroll region
+      const scrollTop = buffer.scrollRegion.top - 1; // Convert to 0-based
+      const scrollBottom = buffer.scrollRegion.bottom - 1; // Convert to 0-based
+      
+      // Calculate absolute position where cursor is
+      const absoluteCursorRow = currentBuffer.scrollTop + buffer.cursor.row;
+      
+      // Only delete if cursor is within scroll region
+      if (buffer.cursor.row >= scrollTop && buffer.cursor.row <= scrollBottom) {
+        // Delete lines at cursor position
+        for (let i = 0; i < count; i++) {
+          if (absoluteCursorRow < currentBuffer.lines.length) {
+            currentBuffer.lines.splice(absoluteCursorRow, 1);
+          }
+        }
+        
+        // Calculate absolute bottom of scroll region
+        const absoluteScrollBottom = currentBuffer.scrollTop + scrollBottom;
+        
+        // Add blank lines at the bottom of the scroll region to maintain region size
+        while (currentBuffer.lines.length <= absoluteScrollBottom) {
+          currentBuffer.lines.push(createTerminalLine());
+        }
+        
+        logger.debug(`Deleted ${count} lines at cursor position within scroll region`);
+      }
+    } else {
+      // Delete lines in full screen mode
+      const absoluteCursorRow = currentBuffer.scrollTop + buffer.cursor.row;
+      
+      for (let i = 0; i < count; i++) {
+        if (absoluteCursorRow < currentBuffer.lines.length) {
+          currentBuffer.lines.splice(absoluteCursorRow, 1);
+        }
+      }
+      
+      // Add blank lines at the bottom to maintain screen size
+      const maxLines = currentBuffer.scrollTop + buffer.size.rows;
+      while (currentBuffer.lines.length < maxLines) {
+        currentBuffer.lines.push(createTerminalLine());
+      }
+      
+      logger.debug(`Deleted ${count} lines at cursor position`);
+    }
+  }
+
+  /**
    * Performs a soft terminal reset.
    *
    * @param buffer - TTY buffer
@@ -1011,6 +1263,9 @@ export class TTYService implements ITTYService {
     // Reset modes
     buffer.modes.insertMode = false;
     buffer.modes.autowrap = true;
+    
+    // Reset scroll region
+    buffer.scrollRegion = null;
     
     // Clear saved cursor
     buffer.savedCursor = undefined;
