@@ -6,6 +6,7 @@ import React from "react";
 import { Box, Text } from "ink";
 import type { TTYBuffer } from "../../../tty/models/tty-buffer-model.ts";
 import { convertColorCode } from "../../../tty/utils/color-utils.ts";
+import { logger } from "../../../logger/logger.ts";
 
 interface TerminalLineProps {
   /** The line text content */
@@ -69,7 +70,11 @@ export const TerminalLine: React.FC<TerminalLineProps> = ({
 
   // Fallback to plain text if no detailed character data
   if (!lineData || !lineData.characters.length) {
-    return <Text>{lineText}</Text>;
+    return (
+      <Box flexDirection="row">
+        <Text>{lineText || " "}</Text>
+      </Box>
+    );
   }
 
   // Render each character with its individual attributes
