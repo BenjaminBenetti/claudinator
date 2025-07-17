@@ -1,6 +1,6 @@
 {
   "tasks": {
-    "dev": "deno run --watch --allow-env --allow-read --allow-write --allow-net --allow-run src/main.ts",
+    "dev": "deno run --no-code-cache --watch --allow-env --allow-read --allow-write --allow-net --allow-run src/main.ts",
     "build": "deno compile --output bin/claudinator --allow-env --allow-read --allow-write --allow-net --allow-run src/main.ts",
     "test": "deno test --coverage=coverage --allow-env --allow-read --allow-write",
     "compile": "deno compile --output bin/claudinator --allow-env --allow-read --allow-write --allow-net --allow-run src/main.ts",

@@ -26,8 +26,6 @@ export interface TTYTerminalProps {
   enableScrolling?: boolean;
 }
 
-
-
 /**
  * TTY Terminal component that renders terminal output with enhanced ANSI support.
  *
@@ -60,7 +58,7 @@ export const TTYTerminal: React.FC<TTYTerminalProps> = ({
       const lines = ttyService.getVisibleLinesWithIndices(sessionId);
 
       logger.debug(`Visible lines for session ${sessionId}: ${lines.length}`);
-      logger.debug(`Visible lines: ${lines.map(l => l.lineText).join("\n")}`);
+      logger.debug(`Visible lines: ${lines.map((l) => l.lineText).join("\n")}`);
 
       return lines;
     } catch (error) {
@@ -72,9 +70,7 @@ export const TTYTerminal: React.FC<TTYTerminalProps> = ({
   // Helper function to render empty state
   const renderEmptyState = () => (
     <Text color="gray" dimColor>
-      {isFocused
-        ? "Terminal ready - waiting for output..."
-        : "No output"}
+      {isFocused ? "Terminal ready - waiting for output..." : "No output"}
     </Text>
   );
 
@@ -84,7 +80,10 @@ export const TTYTerminal: React.FC<TTYTerminalProps> = ({
       return renderEmptyState();
     }
 
-    return visibleLines.map((line: { lineIndex: number; lineText: string }, index: number) => (
+    return visibleLines.map((
+      line: { lineIndex: number; lineText: string },
+      index: number,
+    ) => (
       <React.Fragment key={index}>
         <TerminalLine
           lineText={line.lineText}
@@ -96,8 +95,6 @@ export const TTYTerminal: React.FC<TTYTerminalProps> = ({
       </React.Fragment>
     ));
   };
-
-
 
   // If no TTY buffer exists, show error
   if (!ttyBuffer) {

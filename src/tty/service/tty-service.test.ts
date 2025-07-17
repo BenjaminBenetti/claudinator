@@ -328,4 +328,94 @@ Deno.test("TTY Service Tests", async (t) => {
     const buffer = service.getTTYBuffer("test-session");
     assertEquals(buffer!.currentAttributes.foregroundColor, undefined);
   });
+
+  await t.step(
+    "processOutput should handle alternate buffer mode 47",
+    () => {
+      const service = new TTYService();
+      const buffer = service.createTTYBuffer("test-session", 80, 24);
+
+      // Switch to alternate buffer
+      service.processOutput("test-session", "\x1b[?47h");
+      const ttyBuffer = service.getTTYBuffer("test-session")!;
+      assertEquals(ttyBuffer.useAlternateBuffer, true);
+
+      // Alternate buffer should have full screen lines
+      assertEquals(ttyBuffer.alternateBuffer.lines.length, 24);
+
+      // Switch back to normal buffer
+      service.processOutput("test-session", "\x1b[?47l");
+      assertEquals(ttyBuffer.useAlternateBuffer, false);
+    },
+  );
+
+  await t.step(
+    "processOutput should handle alternate buffer mode 1047 with cursor save/restore",
+    () => {
+      const service = new TTYService();
+      const buffer = service.createTTYBuffer("test-session");
+
+      // Position cursor and switch to alternate buffer
+      service.processOutput("test-session", "\x1b[10;5H\x1b[?1047h");
+      const ttyBuffer = service.getTTYBuffer("test-session")!;
+
+      assertEquals(ttyBuffer.useAlternateBuffer, true);
+      assertEquals(ttyBuffer.savedCursor?.row, 9); // 10-1 (1-based to 0-based)
+      assertEquals(ttyBuffer.savedCursor?.col, 4); // 5-1 (1-based to 0-based)
+
+      // Switch back to normal buffer - should restore cursor
+      service.processOutput("test-session", "\x1b[?1047l");
+      assertEquals(ttyBuffer.useAlternateBuffer, false);
+      assertEquals(ttyBuffer.cursor.row, 9);
+      assertEquals(ttyBuffer.cursor.col, 4);
+      assertEquals(ttyBuffer.savedCursor, undefined);
+    },
+  );
+
+  await t.step(
+    "processOutput should handle alternate buffer mode 1049 with cursor save/restore",
+    () => {
+      const service = new TTYService();
+      const buffer = service.createTTYBuffer("test-session");
+
+      // Position cursor and switch to alternate buffer
+      service.processOutput("test-session", "\x1b[15;20H\x1b[?1049h");
+      const ttyBuffer = service.getTTYBuffer("test-session")!;
+
+      assertEquals(ttyBuffer.useAlternateBuffer, true);
+      assertEquals(ttyBuffer.savedCursor?.row, 14); // 15-1
+      assertEquals(ttyBuffer.savedCursor?.col, 19); // 20-1
+
+      // Switch back to normal buffer - should restore cursor
+      service.processOutput("test-session", "\x1b[?1049l");
+      assertEquals(ttyBuffer.useAlternateBuffer, false);
+      assertEquals(ttyBuffer.cursor.row, 14);
+      assertEquals(ttyBuffer.cursor.col, 19);
+      assertEquals(ttyBuffer.savedCursor, undefined);
+    },
+  );
+
+  await t.step(
+    "processOutput should handle vim-like sequence for empty line rendering",
+    () => {
+      const service = new TTYService();
+      const buffer = service.createTTYBuffer("test-session", 80, 24);
+
+      // Simulate vim startup sequence
+      const vimSequence = "\x1b[?1049h" + // Save cursor and switch to alternate buffer
+        "\x1b[2J" + // Clear screen
+        "\x1b[H" + // Move to home position
+        "# Header\n" + // Add header
+        "\n" + // Empty line
+        "Content line"; // Content
+
+      service.processOutput("test-session", vimSequence);
+      const lines = service.getVisibleLines("test-session");
+
+      // Should have header, empty line, and content
+      assertEquals(lines[0], "# Header");
+      assertEquals(lines[1], ""); // Empty line should be preserved
+      assertEquals(lines[2], "Content line");
+    },
+  );
 });

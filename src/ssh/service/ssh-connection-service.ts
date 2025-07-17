@@ -246,15 +246,15 @@ export class SSHConnectionService implements ISSHConnectionService {
       // Create the escape sequence as bytes: ESC [ 8 ; rows ; cols t
       const escapeBytes = new Uint8Array([
         27, // ESC character
-        ...new TextEncoder().encode(`[8;${size.rows};${size.cols}t`)
+        ...new TextEncoder().encode(`[8;${size.rows};${size.cols}t`),
       ]);
-      
+
       logger.info(
         `Sending resize sequence as raw bytes (rows=${size.rows}, cols=${size.cols})`,
       );
-      
+
       await inputWriter.write(escapeBytes);
-      
+
       // Update last activity
       session.lastActivity = new Date();
       this.sessions.set(sessionId, session);

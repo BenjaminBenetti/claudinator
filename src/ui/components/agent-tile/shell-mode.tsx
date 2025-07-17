@@ -45,7 +45,7 @@ export const ShellMode: React.FC<ShellModeProps> = ({
     // Calculate container width (same as TileContainer)
     const containerWidth = stdout.columns - 27; // Account for sidebar width
     const containerHeight = stdout.rows - 3; // Account for help bar height
-    
+
     // Calculate tile width based on tile count (same logic as TileContainer)
     let tileWidth: number;
     if (tileCount === 1) {
@@ -60,7 +60,7 @@ export const ShellMode: React.FC<ShellModeProps> = ({
       const availableWidth = containerWidth - horizontalOverhead;
       tileWidth = Math.floor(availableWidth / columns);
     }
-    
+
     // Account for tile internal padding and borders
     const availableWidth = Math.max(20, tileWidth - 4); // Tile padding and borders
     const availableHeight = Math.max(5, containerHeight - 6); // Status bar and padding
@@ -119,32 +119,41 @@ export const ShellMode: React.FC<ShellModeProps> = ({
                     session.id,
                     terminalSize,
                   );
-                  
+
                   // Also send explicit stty command to ensure remote terminal width is set
                   setTimeout(async () => {
                     try {
-                      const sttyCommand = `stty cols ${terminalSize.cols} rows ${terminalSize.rows}\r`;
-                      await sshConnectionService.sendKeystroke(session.id, sttyCommand);
+                      const sttyCommand =
+                        `stty cols ${terminalSize.cols} rows ${terminalSize.rows}\r`;
+                      await sshConnectionService.sendKeystroke(
+                        session.id,
+                        sttyCommand,
+                      );
                       logger.info(
                         `Sent stty command to set terminal size: ${terminalSize.cols}x${terminalSize.rows}`,
                       );
-                      
+
                       // Check what the remote terminal actually thinks its width is
                       setTimeout(async () => {
                         try {
-                          const checkCommand = `echo "TERM_WIDTH: $(tput cols)"\r`;
-                          await sshConnectionService.sendKeystroke(session.id, checkCommand);
-                          logger.info("Sent command to check remote terminal width");
+                          const checkCommand =
+                            `echo "TERM_WIDTH: $(tput cols)"\r`;
+                          await sshConnectionService.sendKeystroke(
+                            session.id,
+                            checkCommand,
+                          );
+                          logger.info(
+                            "Sent command to check remote terminal width",
+                          );
                         } catch (checkErr) {
                           logger.warn("Failed to send tput command:", checkErr);
                         }
                       }, 100);
-                      
                     } catch (sttyErr) {
                       logger.warn("Failed to send stty command:", sttyErr);
                     }
                   }, 200); // Additional delay for stty command
-                  
+
                   logger.info(
                     `Terminal resized after first output to ${terminalSize.cols}x${terminalSize.rows}`,
                   );

@@ -10,7 +10,9 @@ import { BASIC_COLORS } from "../models/ansi-sequence-model.ts";
  * @param colorCode - ANSI color code (0-7 for basic colors)
  * @returns Ink color string or undefined for default
  */
-export function convertColorCode(colorCode: number | [number, number, number] | undefined): string | undefined {
+export function convertColorCode(
+  colorCode: number | [number, number, number] | undefined,
+): string | undefined {
   if (colorCode === undefined) return undefined;
 
   switch (colorCode) {

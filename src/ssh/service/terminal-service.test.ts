@@ -89,7 +89,9 @@ class MockTTYService implements ITTYService {
     this.callbacks.delete(sessionId);
   }
 
-  getVisibleLinesWithIndices(sessionId: string): Array<{ lineIndex: number; lineText: string }> {
+  getVisibleLinesWithIndices(
+    sessionId: string,
+  ): Array<{ lineIndex: number; lineText: string }> {
     const lines = this.getVisibleLines(sessionId);
     return lines.map((lineText, index) => ({ lineIndex: index, lineText }));
   }

@@ -298,14 +298,18 @@ export class TerminalService implements ITerminalService {
     // Delegate all scrolling to TTY service - it handles coordinates properly
     // SSH service should not manage its own scroll state
     // TODO: Implement scroll methods in TTY service and delegate here
-    logger.warn(`scrollUp not yet implemented - TTY service should handle scrolling`);
+    logger.warn(
+      `scrollUp not yet implemented - TTY service should handle scrolling`,
+    );
   }
 
   scrollDown(sessionId: string, lines: number): void {
-    // Delegate all scrolling to TTY service - it handles coordinates properly  
+    // Delegate all scrolling to TTY service - it handles coordinates properly
     // SSH service should not manage its own scroll state
     // TODO: Implement scroll methods in TTY service and delegate here
-    logger.warn(`scrollDown not yet implemented - TTY service should handle scrolling`);
+    logger.warn(
+      `scrollDown not yet implemented - TTY service should handle scrolling`,
+    );
   }
 
   getVisibleLines(sessionId: string): string[] {
@@ -335,7 +339,7 @@ export class TerminalService implements ITerminalService {
 
     // Delegate buffer clearing to TTY service - no need to manage our own state
     this.ttyService.clearBuffer(sessionId);
-    
+
     this.terminalStates.set(sessionId, state);
   }
 
