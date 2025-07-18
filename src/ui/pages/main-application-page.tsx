@@ -11,6 +11,7 @@ import { ErrorModal } from "../components/error-modal.tsx";
 import { AgentService } from "../../agent/service/agent-service.ts";
 import { FocusArea, UIStateService } from "../service/ui-state-service.ts";
 import { AgentStatus } from "../../agent/models/agent-model.ts";
+import { DisplayMode } from "../components/agent-tile/types.ts";
 import { useAgentSelection } from "../hooks/use-agent-selection.ts";
 import { createSSHServices } from "../../ssh/service/ssh-service-factory.ts";
 
@@ -44,6 +45,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
   const [errorModalMessage, setErrorModalMessage] = useState(() =>
     uiStateService.getErrorModalMessage()
   );
+  const [displayModeUpdateTrigger, setDisplayModeUpdateTrigger] = useState(0);
 
   // Use the agent selection hook
   const {
@@ -116,6 +118,12 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
     setErrorModalMessage("");
   };
 
+  const handleDisplayModeChange = (agentId: string, mode: DisplayMode) => {
+    uiStateService.setTileDisplayMode(agentId, mode);
+    // Trigger re-render to update the displayMode prop
+    setDisplayModeUpdateTrigger(prev => prev + 1);
+  };
+
   useInput((_input, key) => {
     // Don't handle input when error modal is visible
     if (errorModalVisible) {
@@ -123,6 +131,19 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
     }
 
     if (key.tab) {
+      // Check if any focused tile is in shell mode - if so, don't cycle focus
+      if (focusArea === FocusArea.Tile) {
+        const selectedAgents = getSelectedAgents(agents);
+        const focusedAgent = selectedAgents[focusedTileIndex];
+        if (
+          focusedAgent &&
+          uiStateService.getTileDisplayMode(focusedAgent.id) ===
+            DisplayMode.Shell
+        ) {
+          return; // Don't handle tab if terminal has focus
+        }
+      }
+
       uiStateService.cycleFocus(getSelectedAgentCount());
       setFocusArea(uiStateService.getFocusArea());
       return;
@@ -154,6 +175,7 @@ export const MainApplicationPage: React.FC<MainApplicationPageProps> = ({
       agent={agent}
       isFocused={focusArea === FocusArea.Tile && index === focusedTileIndex}
       displayMode={uiStateService.getTileDisplayMode(agent.id)}
+      onDisplayModeChange={handleDisplayModeChange}
       sshConnectionService={sshServices.connectionService}
       terminalService={sshServices.terminalService}
       tileCount={selectedAgents.length}

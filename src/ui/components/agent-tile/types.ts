@@ -11,6 +11,7 @@ export interface AgentTileProps {
   agent: Agent;
   isFocused?: boolean;
   displayMode?: DisplayMode;
+  onDisplayModeChange?: (agentId: string, mode: DisplayMode) => void;
   sshConnectionService?: ISSHConnectionService;
   terminalService?: ITerminalService;
   tileCount?: number;

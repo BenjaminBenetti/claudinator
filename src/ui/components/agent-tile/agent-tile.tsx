@@ -7,14 +7,12 @@ import { ShellMode } from "./shell-mode.tsx";
 export const AgentTile: React.FC<AgentTileProps> = ({
   agent,
   isFocused = false,
+  displayMode = DisplayMode.Details,
+  onDisplayModeChange,
   sshConnectionService,
   terminalService,
   tileCount = 1,
 }: AgentTileProps) => {
-  const [displayMode, setDisplayMode] = React.useState<DisplayMode>(
-    DisplayMode.Details,
-  );
-
   // Handle mode switching when this tile is focused
   useInput((input, _key) => {
     // Only handle input when this tile is focused and not in shell mode
@@ -25,13 +23,13 @@ export const AgentTile: React.FC<AgentTileProps> = ({
 
     // Handle 's' key to switch to shell mode
     if (input === "s" && agent.codespaceId) {
-      setDisplayMode(DisplayMode.Shell);
+      onDisplayModeChange?.(agent.id, DisplayMode.Shell);
       return;
     }
 
     // Handle 'd' key to switch to details mode
     if (input === "d") {
-      setDisplayMode(DisplayMode.Details);
+      onDisplayModeChange?.(agent.id, DisplayMode.Details);
       return;
     }
   });
