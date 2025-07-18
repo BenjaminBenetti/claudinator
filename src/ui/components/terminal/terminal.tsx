@@ -6,6 +6,7 @@ import type {
 } from "../../../ssh/models/ssh-session-model.ts";
 import type { TerminalState } from "../../../ssh/models/terminal-state-model.ts";
 import type { ISSHConnectionService } from "../../../ssh/service/ssh-connection-service.ts";
+import { SSHConnectionError } from "../../../ssh/service/ssh-connection-service.ts";
 import type { ITerminalService } from "../../../ssh/service/terminal-service.ts";
 import { TTYTerminal } from "./tty-terminal.tsx";
 import { logger } from "../../../logger/logger.ts";
@@ -32,6 +33,8 @@ export interface TerminalProps {
   width?: string | number;
   /** Optional height override */
   height?: string | number;
+  /** Callback when remote session is terminated */
+  onSessionTerminated?: () => void;
 }
 
 /**
@@ -55,6 +58,7 @@ export const Terminal: React.FC<TerminalProps> = ({
   tileCount = 1,
   width = "100%",
   height = "100%",
+  onSessionTerminated,
 }: TerminalProps) => {
   const [sshSession, setSSHSession] = useState<SSHSession | undefined>();
   const [terminalState, setTerminalState] = useState<
@@ -171,11 +175,31 @@ export const Terminal: React.FC<TerminalProps> = ({
                           "Sent command to check remote terminal width",
                         );
                       } catch (checkErr) {
-                        logger.warn("Failed to send tput command:", checkErr);
+                        if (
+                          checkErr instanceof SSHConnectionError &&
+                          checkErr.message.includes(
+                            "No input stream for session",
+                          )
+                        ) {
+                          logger.info(
+                            "Session terminated during terminal check, ignoring",
+                          );
+                        } else {
+                          logger.warn("Failed to send tput command:", checkErr);
+                        }
                       }
                     }, 100);
                   } catch (sttyErr) {
-                    logger.warn("Failed to send stty command:", sttyErr);
+                    if (
+                      sttyErr instanceof SSHConnectionError &&
+                      sttyErr.message.includes("No input stream for session")
+                    ) {
+                      logger.info(
+                        "Session terminated during stty command, ignoring",
+                      );
+                    } else {
+                      logger.warn("Failed to send stty command:", sttyErr);
+                    }
                   }
                 }, 200); // Additional delay for stty command
 
@@ -271,7 +295,7 @@ export const Terminal: React.FC<TerminalProps> = ({
   /**
    * Handle keystroke forwarding when focused.
    */
-  useInput((input, key) => {
+  useInput(async (input, key) => {
     if (
       !isFocused || !sshSession || !sshConnectionService ||
       connectionStatus !== "connected"
@@ -304,8 +328,42 @@ export const Terminal: React.FC<TerminalProps> = ({
       }
 
       // Send keystroke to remote shell
-      sshConnectionService.sendKeystroke(sshSession.id, keystroke);
+      await sshConnectionService.sendKeystroke(sshSession.id, keystroke);
     } catch (err) {
+      // Check if this is a session termination error (e.g., remote session ended)
+      if (
+        err instanceof SSHConnectionError &&
+        err.message.includes("No input stream for session")
+      ) {
+        logger.info(
+          `Remote session terminated for session ${sshSession.id}, handling gracefully`,
+        );
+        setConnectionStatus("disconnected");
+        setError("Remote session terminated");
+
+        // Clean up terminal state
+        if (terminalState && terminalService) {
+          terminalService.removeTerminalState(terminalState.sessionId);
+          setTerminalState(undefined);
+        }
+
+        // Clean up SSH session
+        try {
+          await sshConnectionService.disconnectSession(sshSession.id);
+        } catch (disconnectErr) {
+          logger.warn(
+            "Error during cleanup after session termination:",
+            disconnectErr,
+          );
+        }
+        setSSHSession(undefined);
+
+        // Notify parent that session terminated so it can switch back to details mode
+        onSessionTerminated?.();
+
+        return; // Don't treat this as a regular error
+      }
+
       console.error("Failed to send keystroke:", err);
       setError("Failed to send input");
     }
@@ -379,6 +437,9 @@ export const Terminal: React.FC<TerminalProps> = ({
           )}
         {connectionStatus === "connecting" && (
           <Text color="yellow">Establishing connection...</Text>
+        )}
+        {connectionStatus === "disconnected" && (
+          <Text color="gray">{error || "Session disconnected"}</Text>
         )}
         {connectionStatus === "error" && (
           <Text color="red">{error || "Connection failed"}</Text>

@@ -9,6 +9,7 @@ interface ShellModeProps extends AgentTileProps {
   sshConnectionService?: ISSHConnectionService;
   terminalService?: ITerminalService;
   tileCount?: number;
+  onSessionTerminated?: () => void;
 }
 
 export const ShellMode: React.FC<ShellModeProps> = ({
@@ -17,6 +18,7 @@ export const ShellMode: React.FC<ShellModeProps> = ({
   sshConnectionService,
   terminalService,
   tileCount = 1,
+  onSessionTerminated,
 }: ShellModeProps) => {
   // If no SSH services provided, show error
   if (!sshConnectionService || !terminalService) {
@@ -51,6 +53,7 @@ export const ShellMode: React.FC<ShellModeProps> = ({
       tileCount={tileCount}
       width="100%"
       height="100%"
+      onSessionTerminated={onSessionTerminated}
     />
   );
 };

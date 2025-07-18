@@ -34,6 +34,13 @@ export const AgentTile: React.FC<AgentTileProps> = ({
     }
   });
 
+  /**
+   * Handle session termination by switching back to details mode.
+   */
+  const handleSessionTerminated = () => {
+    onDisplayModeChange?.(agent.id, DisplayMode.Details);
+  };
+
   const renderMode = () => {
     switch (displayMode) {
       case DisplayMode.Details:
@@ -46,6 +53,7 @@ export const AgentTile: React.FC<AgentTileProps> = ({
             sshConnectionService={sshConnectionService}
             terminalService={terminalService}
             tileCount={tileCount}
+            onSessionTerminated={handleSessionTerminated}
           />
         );
       default:
