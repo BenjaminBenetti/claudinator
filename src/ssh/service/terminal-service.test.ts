@@ -67,6 +67,20 @@ class MockTTYService implements ITTYService {
     return ["Mock line 1", "Mock line 2", "Mock line 3"];
   }
 
+  getVisibleLinesWithIndices(
+    sessionId: string,
+  ): Array<{ lineIndex: number; lineText: string }> {
+    const buffer = this.buffers.get(sessionId);
+    if (!buffer) return [];
+
+    // Return simple mock lines with indices
+    return [
+      { lineIndex: 0, lineText: "Mock line 1" },
+      { lineIndex: 1, lineText: "Mock line 2" },
+      { lineIndex: 2, lineText: "Mock line 3" },
+    ];
+  }
+
   resizeTerminal(sessionId: string, cols: number, rows: number): void {
     const buffer = this.buffers.get(sessionId);
     if (buffer) {
