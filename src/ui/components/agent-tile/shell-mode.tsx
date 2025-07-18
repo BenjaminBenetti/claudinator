@@ -251,7 +251,7 @@ export const ShellMode: React.FC<ShellModeProps> = ({
 
       if (key.return) {
         keystroke = "\r";
-      } else if (key.backspace) {
+      } else if (key.backspace || key.delete) {
         keystroke = "\x7f";
       } else if (key.tab) {
         keystroke = "\t";
