@@ -133,8 +133,9 @@ export class GitHubCodespaceRepositoryImpl
 
       return response.data;
     } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
       throw new GitHubRepositoryError(
-        `Failed to create codespace for ${owner}/${repo}`,
+        `Failed to create codespace for ${owner}/${repo}: ${detail}`,
         "create",
         error instanceof Error ? error : new Error(String(error)),
       );

@@ -23,9 +23,7 @@
   ],
   "customizations": {
     "vscode": {
-      "extensions": [
-        "Augment.vscode-augment"
-      ]
+      "extensions": []
     }
   },
   "remoteEnv": {

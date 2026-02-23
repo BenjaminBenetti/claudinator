@@ -49,7 +49,13 @@ export class AgentService {
     // Start codespace provisioning in background
     this.provisionCodespaceForAgent(agent.id, options).catch((error) => {
       // Update agent status to error if provisioning fails
-      this.repository.update(agent.id, { status: AgentStatus.Error });
+      const errorMessage = error instanceof Error
+        ? error.message
+        : String(error);
+      this.repository.update(agent.id, {
+        status: AgentStatus.Error,
+        errorMessage,
+      });
       console.error(
         `Failed to provision codespace for agent ${agent.id}:`,
         error,
@@ -128,7 +134,13 @@ export class AgentService {
       });
     } catch (error) {
       // Update agent status to error if provisioning fails
-      this.repository.update(agentId, { status: AgentStatus.Error });
+      const errorMessage = error instanceof Error
+        ? error.message
+        : String(error);
+      this.repository.update(agentId, {
+        status: AgentStatus.Error,
+        errorMessage,
+      });
       throw error;
     }
   }

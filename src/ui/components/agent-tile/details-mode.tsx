@@ -95,10 +95,18 @@ export const DetailsMode: React.FC<AgentTileProps> = ({
         <Text color="white">
           Agent Details
         </Text>
-        <Text color="gray" dimColor>
-          This agent is {getStatusText(agent.status).toLowerCase()}{" "}
-          and ready for tasks.
-        </Text>
+        {agent.status === "error" && agent.errorMessage
+          ? (
+            <Text color="red">
+              Error: {agent.errorMessage}
+            </Text>
+          )
+          : (
+            <Text color="gray" dimColor>
+              This agent is {getStatusText(agent.status).toLowerCase()}{" "}
+              and ready for tasks.
+            </Text>
+          )}
       </Box>
 
       {isFocused && (

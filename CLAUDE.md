@@ -3,10 +3,6 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with
 code in this repository.
 
-# Primary Coding Standard
-
-Always follow SOLID principles Always apply DDD patterns Always write DRY code
-
 ## Project Overview
 
 Claudinator is a CLI tool inspired by Terminator that enables users to:
@@ -17,44 +13,30 @@ Claudinator is a CLI tool inspired by Terminator that enables users to:
 
 ## Core Principles
 
-You always produce clean, DRY, and SOLID code. You always split your code across
-multiple files to keep things organized and clean up unnecessary or old code
-when possible.
+Always follow SOLID principles. Always apply DDD patterns. Always write DRY
+code. Split code across multiple files to keep things organized and clean up
+unnecessary or old code when possible.
 
 ### Directory Structure
 
-When creating files follow this directory structure:
-
 ```
-/src
-  /<domain>
-    /<type>
-      /<file>.ts
-      /<file>.test.ts
+/src/<domain>/<type>/<file>.ts   (co-located tests: <file>.test.ts)
 ```
 
-Example:
+Domains: `agent`, `app`, `cli`, `git`, `github`, `logger`, `ssh`, `tty`, `ui`,
+`utils`
 
-```
-/src
-  /agent
-    /models
-      /agent-model.ts
-      /agent-model.test.ts
-    /service
-      /agent-service.ts
-      /agent-service.test.ts
-    /repo
-      /agent-repo.ts
-      /agent-repo.test.ts
-```
+Types within each domain: `models`, `service`, `repo`, `utils`, `config`,
+`errors`, `components`, `pages`, `hooks`
 
 ## Technology Stack
 
 - **Runtime**: Deno (TypeScript)
 - **UI Framework**: React with Ink (terminal UI)
-- **Testing**: Deno's built-in test runner with @std/assert
-- **Architecture**: Domain-Driven Design with Repository Pattern
+- **Testing**: Deno's built-in test runner with `@std/assert`
+- **GitHub API**: Octokit
+- **Architecture**: Domain-Driven Design with Repository + Service Factory
+  patterns
 
 ## Essential Commands
 
@@ -68,7 +50,6 @@ Example:
 
 - **Run all tests**: `deno task test`
 - **Test specific file**: `deno task test <file_path>`
-- **Coverage**: Tests automatically generate coverage in `/coverage`
 
 ### Linting & Type Checking
 
@@ -76,136 +57,177 @@ Example:
 - **Format**: `deno fmt`
 - **Lint**: `deno lint`
 
-## Architecture Patterns
+## Application Bootstrap Flow
 
-1. **Service Factory Pattern**: All services use factory functions (e.g.,
-   `createAgentService()`)
-2. **Repository Pattern**: Data access through repository interfaces
-3. **Component Structure**: React functional components with hooks for UI
-4. **Testing Co-location**: Test files (`.test.ts`) next to source files
+```
+main.ts
+  → CliRunnerService.run(args)
+    → SignalHandler setup (SIGINT/SIGTERM, double Ctrl+C = immediate exit)
+    → Arg parsing (help, version)
+    → AppService.run()
+      → InkService.start(AppContainer)
+        → 1s splash screen → MainApplicationPage
+          → Creates SSH services (connection, terminal, session repo, TTY)
+          → Renders AgentList (sidebar) + TileContainer (grid) + HelpBar
+```
 
-## Logging and Debugging
+## Architecture Overview
 
-### Custom Logger
+### Domain Interactions
 
-The project includes a custom logger at `/src/logger/logger.ts` that writes logs
-to:
+```
+CLI (args) → App Service → Ink Service → UI Components
+                                           ↕
+                                     UIStateService (focus, selection, display mode)
+                                           ↕
+                                     AgentService (lifecycle, codespace management)
+                                       ↕            ↕
+                               GitHubCodespaceService  GitService
+                                       ↕
+                               SSHConnectionService (Deno child processes)
+                                       ↕
+                               TerminalService (output pump, state)
+                                       ↕
+                                   TTYService (ANSI parser, buffer management)
+```
 
-**Log File Location**: `~/.claudinator/log.txt`
+### Service Factory Pattern
 
-- Expands `~` to the user's home directory (`$HOME`)
-- Creates the directory `~/.claudinator/` if it doesn't exist
-- Appends timestamped log entries in format: `[ISO_TIMESTAMP] LEVEL: MESSAGE`
+All services expose factory functions, never direct class instantiation:
 
-**Available Log Levels**:
+```typescript
+export function createXxxService(...deps): XxxService {
+  return new XxxServiceImpl(...deps);
+}
+```
 
-- `logger.info()` - General information
-- `logger.warn()` - Warning messages
-- `logger.error()` - Error messages
-- `logger.debug()` - Debug information
-- `logger.log()` - Alias for info
+Composite factories exist for related services (e.g., `createSSHServices()`
+returns connection, terminal, session repo, and TTY services together).
 
-**Usage**: Import with `import { logger } from "@src/logger/logger.ts"`
+### Dependency Injection Chain
 
-If the log file cannot be written, the logger falls back to `console.error()`.
+```
+CliRunnerService
+  ├─ SignalHandlerService
+  └─ AppService
+      ├─ InkService(signalHandler)
+      ├─ AgentRepository (in-memory Map, returns defensive copies)
+      ├─ AgentService(agentRepo, gitHubCodespaceService, gitService)
+      │  ├─ GitHubCodespaceService(codespaceRepo, authService)
+      │  │  ├─ GitHubAuthService (gh CLI token)
+      │  │  └─ OctokitClient
+      │  └─ GitService(gitCommandExecutor)
+      └─ UIStateService
+```
+
+SSH services are created at component level in `MainApplicationPage`, not at app
+bootstrap.
+
+### Agent Lifecycle
+
+States: `Provisioning` → `Idle` → `Active` → `Running` | `Error`
+
+1. **Provisioning**: Background async - checks git/auth, finds or creates a
+   GitHub Codespace (reuses existing `claudinator-*` codespaces when possible)
+2. **Idle**: Codespace ready, no SSH session
+3. **Active/Running**: Connected via SSH, terminal session active
+4. **Error**: Failed at any stage, stores `errorMessage`
+
+Key methods on AgentService:
+
+- `createAgentWithAutoCodespace()` - Non-blocking creation
+- `attachSSHSession()` / `detachSSHSession()` - SSH lifecycle
+- `findAvailableCodespace()` - Reuse strategy: prefers running over stopped
+
+### SSH/Terminal Architecture
+
+**SSH Connection** (`ssh-connection-service.ts`): Spawns Deno child processes
+using `script -qec "stty cols X rows Y; gh codespace ssh -c \"NAME\""`. The
+`script` command creates a real PTY (avoids pseudo-terminal warnings). Input is
+sent via `sendKeystroke()` through a piped stdin writer. Terminal resize uses
+ANSI escape sequence `ESC[8;ROWS;COLSt`.
+
+**Terminal Service** (`terminal-service.ts`): Manages terminal state per session.
+Runs an async **output pump** that continuously reads from the SSH output stream,
+passes data through the TTY service, and triggers UI callbacks on state changes.
+
+**TTY Service** (`tty-service.ts`): Full ANSI escape sequence parser
+implementing a state machine (Normal → Escape → CSI/OSC). Manages a
+**dual-buffer system** (primary + alternate) for TUI app support (vim, top).
+Each buffer tracks lines of characters with per-character text attributes
+(colors, bold, underline). Handles cursor movement, scroll regions (DECSTBM),
+screen clearing, SGR color codes, and mode switching (1047/1049 alternate
+buffer).
+
+### UI Architecture
+
+**Component hierarchy**:
+
+```
+AppContainer → MainApplicationPage
+  ├─ AgentList (sidebar - agent selection)
+  ├─ TileContainer (grid of AgentTile components)
+  │   └─ AgentTile → DetailsMode | ShellMode
+  │       └─ ShellMode → TtyTerminal (renders TTY buffer lines)
+  ├─ HelpBar (keyboard hints)
+  └─ ErrorModal (overlay)
+```
+
+**UIStateService** tracks: focus area (Sidebar vs Tile), selected/focused
+indices, display mode per agent (Details vs Shell), error modal state. Tab key
+cycles focus between Sidebar and Tile.
+
+**Terminal rendering**: `TtyTerminal` reads visible lines from the TTY buffer and
+renders them with Ink, translating ANSI attributes to Ink color components.
+Input from `useInput()` hook is forwarded to SSH via `sendKeystroke()`.
+
+## Logging
+
+Logger at `/src/logger/logger.ts` writes to `~/.claudinator/log.txt`. Import
+via relative path. Levels: `info`, `warn`, `error`, `debug`, `log` (alias for
+info). Falls back to `console.error()` on write failure.
 
 ## Code Organization Standards
 
-### Class Member Organization
+### Class Member Order
 
-When writing classes, **ALWAYS** organize members in the following order:
+1. Properties (public → protected → private)
+2. Constructor
+3. Public methods
+4. Protected methods
+5. Private methods
 
-1. **Properties** (grouped by visibility)
-   - Public properties
-   - Protected properties
-   - Private properties
+### Documentation
 
-2. **Constructor**
+All methods MUST have JSDoc with `@param`, `@returns`, and `@throws` tags.
 
-3. **Public Methods** (grouped logically by functionality)
+### React Props Pattern
 
-4. **Protected Methods** (grouped logically by functionality)
+**ALWAYS** include explicit type annotations on destructured props:
 
-5. **Private Methods** (grouped logically by functionality)
+```typescript
+export const Component: React.FC<Props> = ({ prop1, prop2 }: Props) => { ... };
+```
 
-### Documentation Requirements
+This is REQUIRED for all functional components (including forwardRef) to enable
+IntelliSense.
 
-**ALL methods MUST have JSDoc documentation comments** that include:
+### Imports
 
-- A clear description of what the method does
-- `@param` tags for all parameters with descriptions
-- `@returns` tag describing the return value (if not void)
-- `@throws` tag for any exceptions that might be thrown (if applicable)
+All imports use **relative paths** (no path aliases). Deno import map in
+`deno.json` only maps external packages (`@std/assert`, `react`, `ink`,
+`octokit`, etc.).
 
 ## Task Engine - Procedure Rules
 
 YOU MUST FIRST select a procedure and READ the procedure file before proceeding.
-This is the MOST important thing.
 
-### Research Procedure
-
-Found in `./.claude/rules/research-procedure.md` - Use when:
-
-- User wants to understand the codebase
-- User needs information about a topic
-- No code modification is required
-
-### Coding Procedure
-
-Found in `./.claude/rules/coding-procedure.md` - Use when:
-
-- Adding new functionality
-- Fixing bugs
-- Improving performance
-- Refactoring code
-
-### Debug Procedure
-
-Found in `./.claude/rules/debug-procedure.md` - Use when:
-
-- Fixing specific bugs
-- Understanding why code isn't working as expected
-
-## UI Development
-
-The UI uses React with Ink for terminal rendering. Key components:
-
-- Pages are in `/src/ui/pages/`
-- Shared components in `/src/ui/components/`
-- State management via UI service in `/src/ui/service/`
-
-When developing UI:
-
-1. Use functional components with hooks
-2. Follow existing component patterns
-3. Test components with react-test-renderer
-4. Keep terminal constraints in mind (no mouse events, limited colors)
-
-### CRITICAL: React TypeScript Props Pattern
-
-**ALWAYS** include explicit type annotations on destructured props parameters
-for proper IntelliSense:
-
-```typescript
-// ✅ CORRECT - Enables IntelliSense on individual props
-export const Component: React.FC<ComponentProps> = ({
-  prop1,
-  prop2,
-}: ComponentProps) => {
-  // Now prop1 and prop2 have proper IntelliSense
-};
-
-// ❌ INCORRECT - Missing type annotation breaks IntelliSense
-export const Component: React.FC<ComponentProps> = ({
-  prop1,
-  prop2,
-}) => {
-  // prop1 and prop2 lack IntelliSense
-};
-```
-
-This pattern is REQUIRED for all React functional components with props,
-including forwardRef components.
+- **Research** (`.claude/rules/research-procedure.md`): Understanding codebase,
+  gathering information, no code changes
+- **Coding** (`.claude/rules/coding-procedure.md`): Adding features, fixing
+  bugs, refactoring, performance
+- **Debug** (`.claude/rules/debug-procedure.md`): Fixing specific bugs,
+  understanding failures
 
 ## Important Reminders
 

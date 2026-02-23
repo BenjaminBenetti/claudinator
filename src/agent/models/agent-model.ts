@@ -14,6 +14,7 @@ export interface Agent {
   codespaceId?: string;
   codespaceDisplayName?: string;
   sshSessionId?: string;
+  errorMessage?: string;
 }
 
 export function createAgent(
@@ -60,6 +61,7 @@ export function isValidAgent(agent: unknown): agent is Agent {
     (obj.codespaceId === undefined || typeof obj.codespaceId === "string") &&
     (obj.codespaceDisplayName === undefined ||
       typeof obj.codespaceDisplayName === "string") &&
-    (obj.sshSessionId === undefined || typeof obj.sshSessionId === "string")
+    (obj.sshSessionId === undefined || typeof obj.sshSessionId === "string") &&
+    (obj.errorMessage === undefined || typeof obj.errorMessage === "string")
   );
 }

@@ -18,6 +18,28 @@ Install the following on your system / devcontainer.
 - [GitHub CLI](https://cli.github.com/)
 - [Claude Code](https://www.anthropic.com/claude-code)
 
+### GitHub CLI Authentication
+
+The `gh` CLI must be authenticated with the **`codespace`** scope. Without it,
+you'll get an error like:
+
+> Must have admin rights to Repository.
+
+To add the required scope, run:
+
+```bash
+gh auth refresh -h github.com -s codespace
+```
+
+This will open a browser to authorize the additional scope. You can verify your
+scopes with:
+
+```bash
+gh auth status
+```
+
+Look for `codespace` in the token scopes list.
+
 ## Codespace Requirements
 
 If you use a custom devcontainer on your repo, it `MUST` have the sshd feature
